@@ -17,10 +17,41 @@
     </div>
 </div>
 
-<div class="mock-notice">
-    &#9432; These are illustrative signals using mock data. Live model output ships in Phase 3.
+<div class="source-meta">
+    <span class="source-meta-item">
+        Source: <strong>{{ data_source }}</strong>
+    </span>
+    {% if model_version %}
+    <span class="source-meta-sep">&middot;</span>
+    <span class="source-meta-item">
+        Model: <strong>{{ model_version }}</strong>
+    </span>
+    {% endif %}
+    {% if generated_at %}
+    <span class="source-meta-sep">&middot;</span>
+    <span class="source-meta-item">
+        Generated: <strong>{{ generated_at }}</strong>
+    </span>
+    {% endif %}
 </div>
 
+{% if used_mock_fallback %}
+<div class="snapshot-notice snapshot-notice-warn">
+    &#9888; Snapshot unavailable — displaying mock fallback data.
+    Live model output ships in Phase 3.
+</div>
+{% elif not signals %}
+<div class="snapshot-notice snapshot-notice-warn">
+    &#9888; No signals available. The snapshot may be empty or the source unreachable.
+</div>
+{% else %}
+<div class="snapshot-notice">
+    &#9432; Signals loaded from local snapshot.
+    Live Sentinel output ships in Phase 3.
+</div>
+{% endif %}
+
+{% if signals %}
 <div class="signal-feed">
     {% for signal in signals %}
     <div class="signal-card signal-{{ signal.direction | lower }}">
@@ -59,4 +90,5 @@
     </div>
     {% endfor %}
 </div>
+{% endif %}
 {% endblock %}

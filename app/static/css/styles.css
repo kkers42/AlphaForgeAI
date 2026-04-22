@@ -244,8 +244,25 @@ nav a.nav-active { color: var(--text); font-weight: 600; }
 .sum-short { color: var(--danger);  border-color: var(--danger);  background: #2d0d0d; }
 .sum-flat  { color: var(--muted);   border-color: var(--border);  background: #21262d; }
 
-/* ── Mock notice ─────────────────────────────────────────────── */
-.mock-notice {
+/* ── Source meta bar ─────────────────────────────────────────── */
+.source-meta {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    background: #161b22;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 12px;
+    color: var(--muted);
+    margin-bottom: 12px;
+}
+.source-meta-item strong { color: var(--text); font-weight: 600; }
+.source-meta-sep { color: #444c56; }
+
+/* ── Snapshot notice ─────────────────────────────────────────── */
+.snapshot-notice {
     background: #1c2128;
     border: 1px solid #444c56;
     border-radius: var(--radius);
@@ -253,6 +270,11 @@ nav a.nav-active { color: var(--text); font-weight: 600; }
     font-size: 13px;
     color: var(--muted);
     margin-bottom: 24px;
+}
+.snapshot-notice-warn {
+    border-color: #e3b341;
+    color: #e3b341;
+    background: #1c1a10;
 }
 
 /* ── Signal feed ─────────────────────────────────────────────── */

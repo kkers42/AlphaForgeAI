@@ -13,15 +13,30 @@ templates = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "tem
 
 @router.get("/signals", response_class=HTMLResponse)
 async def signal_feed(request: Request):
-    signals = get_signals()
+    snapshot = get_signals()
+    signals  = snapshot.signals
+
+    # Format generated_at for display ("2026-04-22T12:00:00Z" → "2026-04-22 12:00 UTC")
+    generated_at_display: str | None = None
+    if snapshot.generated_at:
+        generated_at_display = (
+            snapshot.generated_at.replace("T", " ").replace("Z", " UTC")
+        )
+
     return templates.TemplateResponse("signals.html", {
-        "request":      request,
-        "active_page":  "signals",
-        "app_version":  settings.app_version,
-        "environment":  settings.environment,
-        "signals":      signals,
-        "total":        len(signals),
-        "long_count":   sum(1 for s in signals if s.direction == "LONG"),
-        "short_count":  sum(1 for s in signals if s.direction == "SHORT"),
-        "flat_count":   sum(1 for s in signals if s.direction == "FLAT"),
+        "request":            request,
+        "active_page":        "signals",
+        "app_version":        settings.app_version,
+        "environment":        settings.environment,
+        # signal data
+        "signals":            signals,
+        "total":              len(signals),
+        "long_count":         sum(1 for s in signals if s.direction == "LONG"),
+        "short_count":        sum(1 for s in signals if s.direction == "SHORT"),
+        "flat_count":         sum(1 for s in signals if s.direction == "FLAT"),
+        # snapshot metadata
+        "data_source":        snapshot.source,
+        "generated_at":       generated_at_display,
+        "model_version":      snapshot.model_version,
+        "used_mock_fallback": snapshot.used_mock_fallback,
     })

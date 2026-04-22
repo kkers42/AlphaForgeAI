@@ -13,10 +13,10 @@ Built on a real XGBoost trading system, AlphaForgeAI surfaces quantitative signa
 | Backend | FastAPI (Python 3.11+) |
 | Templates | Jinja2 with shared base layout |
 | Styling | Vanilla CSS (dark theme) |
-| Config | `app/core/config.py` — centralized settings |
+| Config | `app/core/config.py` — version, environment, signal source, fallback policy |
 | Domain | `app/domain/signals.py` — typed Signal model |
-| Repository | `app/repositories/signal_repository.py` — loads signals from local JSON snapshot |
-| Services | `app/services/signal_service.py` — calls repository; falls back to mock data |
+| Repository | `app/repositories/signal_repository.py` — loads from local JSON snapshot |
+| Services | `app/services/signal_service.py` — calls repository; env-aware mock fallback |
 | ML Engine | XGBoost (nightly GPU retrain) |
 | Data | Coinbase Advanced Trade API, OKX Onchain API |
 
@@ -62,13 +62,34 @@ Signals are loaded from a local JSON snapshot file:
 data/signals_snapshot.json
 ```
 
-This file contains the same structure as the Sentinel live snapshot and acts as a
-stand-in until the SSH repository is wired in. To update signals, edit this file
-directly — the route and template require no changes.
+The snapshot uses an object envelope with embedded metadata:
 
-**To swap to the Sentinel/SSH source**: replace `_load_snapshot()` in
-`app/repositories/signal_repository.py` with a function that fetches the JSON
-over SSH. See the swap guide in that file's docstring.
+```json
+{
+  "generated_at":  "2026-04-22T12:00:00Z",
+  "model_version": "xgboost-nightly",
+  "source":        "local_snapshot",
+  "signals":       [ ... ]
+}
+```
+
+The `/signals` page shows the source, model version, and generation time from
+this metadata. A bare JSON array (legacy format) is also accepted.
+
+**To swap to Sentinel/SSH**: replace `_load_raw()` in
+`app/repositories/signal_repository.py`. See the swap guide in that file's docstring.
+
+---
+
+## Mock Fallback Behaviour
+
+| Environment | Default | Override |
+|-------------|---------|----------|
+| `development` | fallback **allowed** — UI never blank during local work | `ALLOW_MOCK_FALLBACK=false` |
+| `production` | fallback **disabled** — empty snapshot shows empty feed | `ALLOW_MOCK_FALLBACK=true` |
+
+In production, if the snapshot is missing or empty, the `/signals` page renders
+with zero signal cards and a warning notice — mock data is not injected silently.
 
 ---
 
@@ -78,7 +99,7 @@ over SSH. See the swap guide in that file's docstring.
 |-------|-------------|
 | `GET /` | Homepage — hero + feature overview |
 | `GET /dashboard` | Dashboard — module status and roadmap view |
-| `GET /signals` | Signal feed — repository-backed signals with direction, confidence, regime, thesis |
+| `GET /signals` | Signal feed — snapshot-backed signals with source metadata |
 | `GET /health` | Health check — returns service name, version, environment |
 
 ---
@@ -88,34 +109,34 @@ over SSH. See the swap guide in that file's docstring.
 ```
 AlphaForgeAI/
 ├── app/
-│   ├── main.py                  # FastAPI app init, static mount, router wiring
+│   ├── main.py
 │   ├── core/
 │   │   ├── __init__.py
-│   │   └── config.py            # Centralized settings (name, version, environment)
+│   │   └── config.py            # version 0.3.0, signal_source, allow_mock_fallback
 │   ├── domain/
 │   │   ├── __init__.py
-│   │   └── signals.py           # Signal Pydantic model — typed contract
+│   │   └── signals.py           # Signal Pydantic model
 │   ├── repositories/
 │   │   ├── __init__.py
-│   │   └── signal_repository.py # Loads + validates signals from local JSON snapshot
+│   │   └── signal_repository.py # SignalSnapshot, v2 + legacy format, swap guide
 │   ├── services/
 │   │   ├── __init__.py
-│   │   └── signal_service.py    # get_signals() → repository; get_mock_signals() → fallback
+│   │   └── signal_service.py    # env-aware fallback, returns SignalSnapshot
 │   ├── routes/
 │   │   ├── __init__.py
-│   │   ├── pages.py             # GET / and GET /health
-│   │   ├── dashboard.py         # GET /dashboard
-│   │   └── signals.py           # GET /signals
+│   │   ├── pages.py
+│   │   ├── dashboard.py
+│   │   └── signals.py           # unpacks SignalSnapshot into template context
 │   ├── templates/
-│   │   ├── base.html            # Shared layout — header, nav, footer, blocks
-│   │   ├── index.html           # Homepage (extends base.html)
-│   │   ├── dashboard.html       # Dashboard module status page (extends base.html)
-│   │   └── signals.html         # Signal feed page (extends base.html)
+│   │   ├── base.html
+│   │   ├── index.html
+│   │   ├── dashboard.html
+│   │   └── signals.html         # source-meta bar + conditional notices
 │   └── static/
 │       └── css/
-│           └── styles.css       # Full dark-theme CSS
+│           └── styles.css       # .source-meta, .snapshot-notice styles
 ├── data/
-│   └── signals_snapshot.json    # Local signal snapshot — stand-in for Sentinel output
+│   └── signals_snapshot.json    # v2 format with metadata envelope
 ├── docs/
 │   ├── product-brief.md
 │   └── roadmap.md
@@ -126,17 +147,25 @@ AlphaForgeAI/
 
 ---
 
-## Environment
+## Environment Variables
 
-The app reads an `ENVIRONMENT` env var (defaults to `development`).
+| Variable | Default | Effect |
+|----------|---------|--------|
+| `ENVIRONMENT` | `development` | Controls debug mode, default fallback policy |
+| `SIGNAL_SOURCE` | `local_snapshot` | Informational label for the active source |
+| `ALLOW_MOCK_FALLBACK` | *(derived from ENVIRONMENT)* | `true`/`false` — overrides fallback policy |
 
 ```powershell
-# Run in production mode
-$env:ENVIRONMENT = "production"
+# Simulate production behaviour locally
+$env:ENVIRONMENT        = "production"
+$env:ALLOW_MOCK_FALLBACK = "false"
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# Force mock fallback even in production (emergency / demo)
+$env:ENVIRONMENT        = "production"
+$env:ALLOW_MOCK_FALLBACK = "true"
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
-
-The environment label appears in the page footer and in the `/health` response.
 
 ---
 
@@ -144,11 +173,12 @@ The environment label appears in the page footer and in the `/health` response.
 
 - **Phase 1** ✅ Foundation: FastAPI skeleton, branded homepage, docs
 - **Phase 1.5** ✅ Structure: config, base layout, dashboard stub, signal domain model
-- **Phase 2** ✅ Signal feed: typed service layer, mock signals, working `/signals` page
+- **Phase 2** ✅ Signal feed: typed service layer, working `/signals` page
 - **Phase 2.5** ✅ Repository layer: `signal_repository.py` loads from `data/signals_snapshot.json`
+- **Phase 2.6** ✅ Architecture cleanup: v0.3.0, metadata envelope, env-aware fallback, source UI
 - **Phase 3** — Content pipeline: AI-written daily market posts via N8N + LLM
-- **Phase 3** — Live signals: swap `_load_snapshot()` for SSH fetch from Sentinel
+- **Phase 3** — Live signals: swap `_load_raw()` for SSH fetch from Sentinel
 - **Phase 4** — Onchain explorer: L/S ratio, OI, netflow charts
-- **Phase 5** — Monetisation: auth, Stripe subscriptions, email digest
+- **Phase 5** — Monetisation: auth, Stripe, email digest
 
 See [`docs/roadmap.md`](docs/roadmap.md) for full detail.

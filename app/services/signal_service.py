@@ -1,46 +1,83 @@
 """
 Signal service layer.
 
-Primary source: local JSON snapshot via SignalRepository.
-Fallback:       get_mock_signals() — used only when the snapshot returns nothing,
-                so the UI is never blank during development or if the file is absent.
+Calls the repository and decides whether to fall back to hardcoded mocks.
+Returns a SignalSnapshot that the route unpacks into template context.
+
+Fallback policy
+---------------
+Mock fallback is controlled by ``settings.allow_mock_fallback``:
+
+- development (default) → True   — UI is never blank during local work
+- production  (default) → False  — empty snapshot surfaces as empty feed;
+                                    no silent data injection
+
+Override at runtime with the ALLOW_MOCK_FALLBACK env var.
 
 Swap guide (live source)
 -------------------------
-To point at a different repository, change the import:
+Point at a different repository by changing this import:
 
-    from app.repositories.sentinel_repository import get_signals  # SSH source
+    from app.repositories.sentinel_repository import get_signals as _repo_get_signals
 
-The rest of this file — and the route — stay unchanged.
+The rest of this file — fallback logic, return type, mock data — is unchanged.
 """
 
 import logging
+from dataclasses import replace
 
+from app.core.config import settings
 from app.domain.signals import Direction, Signal, Timeframe
+from app.repositories.signal_repository import SignalSnapshot
 from app.repositories.signal_repository import get_signals as _repo_get_signals
 
 log = logging.getLogger(__name__)
 
 
-def get_signals() -> list[Signal]:
+def get_signals() -> SignalSnapshot:
     """
-    Return signals from the configured repository.
+    Return a SignalSnapshot from the configured repository.
 
-    Falls back to mock data if the repository returns an empty list,
-    so the page always has content during development.
+    If the repository returns no signals and ``settings.allow_mock_fallback``
+    is True, the snapshot is replaced with hardcoded mock signals and
+    ``used_mock_fallback`` is set to True so the template can show a notice.
+
+    If fallback is disabled (production default), an empty snapshot is
+    returned as-is — the page renders with zero signal cards.
     """
-    signals = _repo_get_signals()
-    if signals:
-        return signals
-    log.info("Repository returned no signals — falling back to mock data")
-    return get_mock_signals()
+    snapshot = _repo_get_signals()
 
+    if not snapshot.signals:
+        if settings.allow_mock_fallback:
+            log.info(
+                "Repository returned no signals — using mock fallback "
+                "(allow_mock_fallback=True, environment=%s)",
+                settings.environment,
+            )
+            return replace(
+                snapshot,
+                signals=get_mock_signals(),
+                source="mock_fallback",
+                used_mock_fallback=True,
+            )
+        log.info(
+            "Repository returned no signals — returning empty feed "
+            "(allow_mock_fallback=False, environment=%s)",
+            settings.environment,
+        )
+
+    return snapshot
+
+
+# ---------------------------------------------------------------------------
+# Mock signals — fallback only, not the primary source
+# ---------------------------------------------------------------------------
 
 def get_mock_signals() -> list[Signal]:
     """
-    Hardcoded mock signals.
+    Hardcoded mock signals used only as a fallback when the snapshot is
+    empty or unavailable and allow_mock_fallback is True.
 
-    Kept as an explicit fallback only — not the primary source.
     Values reflect plausible model output, not live market data.
     """
     return [

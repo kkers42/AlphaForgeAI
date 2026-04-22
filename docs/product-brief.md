@@ -21,14 +21,14 @@ Retail crypto participants are drowning in noise — Twitter hype, influencer ca
 |--------|--------|
 | FastAPI app | ✅ Running |
 | Homepage | ✅ Live |
-| Dashboard stub | ✅ Live — module status overview |
-| Shared layout (base.html) | ✅ In place |
-| Signal domain model | ✅ Typed — `app/domain/signals.py` |
-| Centralized settings | ✅ `app/core/config.py` |
-| Signal repository | ✅ `app/repositories/signal_repository.py` — reads from local JSON snapshot |
-| Signal service layer | ✅ `app/services/signal_service.py` — calls repository, mock fallback |
-| Signal snapshot file | ✅ `data/signals_snapshot.json` — 7 realistic signals, swap-ready |
-| Signal feed page | ✅ `GET /signals` — 7 signals with direction, confidence, thesis, features |
+| Dashboard stub | ✅ Live |
+| Shared layout | ✅ `app/templates/base.html` |
+| Signal domain model | ✅ `app/domain/signals.py` |
+| Centralized config | ✅ `app/core/config.py` — v0.3.0, signal_source, allow_mock_fallback |
+| Signal repository | ✅ `app/repositories/signal_repository.py` — v2 envelope + legacy support |
+| Snapshot file | ✅ `data/signals_snapshot.json` — metadata envelope format |
+| Signal service | ✅ `app/services/signal_service.py` — env-aware fallback, returns SignalSnapshot |
+| Signal feed page | ✅ `GET /signals` — source meta bar, conditional fallback notice |
 | Content pipeline | 🔲 Phase 3 |
 | Live signal feed (Sentinel SSH) | 🔲 Phase 3 |
 | Onchain explorer | 🔲 Phase 4 |
@@ -38,14 +38,49 @@ Retail crypto participants are drowning in noise — Twitter hype, influencer ca
 
 ```
 GET /signals
-    └── signal_service.get_signals()
-            └── signal_repository.get_signals()         ← primary
-                    └── _load_snapshot()                ← reads data/signals_snapshot.json
-            └── signal_service.get_mock_signals()       ← fallback (snapshot missing/empty)
+    └── signal_service.get_signals() → SignalSnapshot
+            ├── signal_repository.get_signals()         ← primary
+            │       └── _load_raw()                     ← reads data/signals_snapshot.json
+            │       └── _parse_snapshot()               ← validates, extracts metadata
+            │
+            └── mock fallback (if allowed by settings)
+                    set used_mock_fallback = True
+                    source = "mock_fallback"
 ```
 
-**Next swap**: replace `_load_snapshot()` in `signal_repository.py` with an SSH call to
-Sentinel. The service, route, and template are untouched.
+**SignalSnapshot fields passed to template:**
+- `signals` — validated list
+- `source` — e.g. `"local_snapshot"`, `"sentinel_ssh"`, `"mock_fallback"`
+- `generated_at` — ISO timestamp from snapshot metadata
+- `model_version` — e.g. `"xgboost-nightly"`
+- `used_mock_fallback` — drives warning notice in UI
+
+**Next swap**: replace `_load_raw()` in `signal_repository.py` with an SSH call
+to Sentinel. Source, metadata, and UI all update automatically from the snapshot content.
+
+## Mock Fallback Policy
+
+| Environment | Default fallback | Override env var |
+|-------------|-----------------|-----------------|
+| `development` | **allowed** | `ALLOW_MOCK_FALLBACK=false` |
+| `production` | **disabled** | `ALLOW_MOCK_FALLBACK=true` |
+
+Production does not silently inject mock data. An empty or unreachable snapshot
+shows an empty feed with a clear warning — operators can diagnose the failure
+rather than serving stale data undetected.
+
+## Snapshot Format (v2)
+
+```json
+{
+  "generated_at":  "2026-04-22T12:00:00Z",
+  "model_version": "xgboost-nightly",
+  "source":        "local_snapshot",
+  "signals":       [ { ... } ]
+}
+```
+
+Legacy bare-array format is still accepted for backward compatibility.
 
 ## Signal Model Contract
 
@@ -82,9 +117,3 @@ A `Signal` has:
 - **Data**: Coinbase Advanced Trade API, OKX onchain API, Alternative.me F&G
 - **Content pipeline**: N8N → LLM (Claude/GPT) → structured JSON → blog post (Phase 3)
 - **Hosting**: TBD (Hostinger VPS or Railway)
-
-## What It Is Not (Phase 1–3)
-
-- Not a trading platform — no order execution
-- Not a portfolio tracker — no account connection
-- Not a prediction engine — signals are probabilistic, not guarantees

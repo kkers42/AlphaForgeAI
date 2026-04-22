@@ -35,7 +35,7 @@
 - [x] `app/templates/signals.html` — feed of signal cards: direction badge, confidence bar, regime tag, thesis, top features
 - [x] Nav updated to include Signals link with active state
 - [x] Dashboard Signal Feed card updated to "Preview" status with link to `/signals`
-- [x] CSS: direction badges, confidence bar, feature chips, mock notice, summary pills
+- [x] CSS: direction badges, confidence bar, feature chips, summary pills
 
 ---
 
@@ -45,15 +45,41 @@
 
 - [x] `app/repositories/signal_repository.py` — loads signals from local JSON snapshot
 - [x] `data/signals_snapshot.json` — 7 realistic signals; stand-in for Sentinel output
-- [x] `app/services/signal_service.py` refactored — calls repository as primary source,
+- [x] `app/services/signal_service.py` refactored — calls repository as primary source;
       `get_mock_signals()` retained as explicit fallback only
 - [x] `app/routes/signals.py` updated — calls `get_signals()` instead of `get_mock_signals()`
 - [x] Error handling: missing file, bad JSON, wrong type, and per-record validation failures
       all produce safe empty/partial results without crashing the app
-- [x] Swap guide documented in `signal_repository.py` — one function to change for SSH source
 
-**Extension point**: replace `_load_snapshot()` in `signal_repository.py` with an SSH call
-to Sentinel — the service, route, and template are untouched.
+---
+
+## Phase 2.6 — Architecture Cleanup ✅
+
+> Correctness, observability, and production readiness before the Sentinel swap.
+
+- [x] Version bumped to `0.3.0` in `app/core/config.py`
+- [x] `signal_source` setting added to config (default: `"local_snapshot"`)
+- [x] `allow_mock_fallback` property added to `Settings`:
+      - `development` → `True` by default
+      - `production` → `False` by default
+      - Overridable at runtime via `ALLOW_MOCK_FALLBACK` env var
+- [x] Snapshot format upgraded to v2 — `data/signals_snapshot.json` now carries:
+      `generated_at`, `model_version`, `source`; bare-array (v1) still accepted
+- [x] `SignalSnapshot` dataclass introduced in `signal_repository.py` — carries signals
+      and metadata through every layer to the template
+- [x] Repository returns `SignalSnapshot`; service decorates it with `used_mock_fallback`
+- [x] Route passes `data_source`, `generated_at`, `model_version`, `used_mock_fallback`
+      to template
+- [x] `/signals` page shows source meta bar (source, model, generated time) and
+      context-sensitive notice (snapshot info / mock warning / empty-feed warning)
+- [x] CSS: `.source-meta` bar, `.snapshot-notice`, `.snapshot-notice-warn`
+- [x] In production, empty snapshot → empty feed with warning; no silent mock injection
+- [x] Swap guide updated in `signal_repository.py` — SSH source emits v2 format;
+      metadata populates automatically after the swap
+
+**Extension point**: replace `_load_raw()` in `signal_repository.py`.
+Everything above it — `SignalSnapshot`, `_parse_snapshot()`, `get_signals()`,
+error handling, the service, the route, and all templates — is unchanged.
 
 ---
 
@@ -63,16 +89,11 @@ to Sentinel — the service, route, and template are untouched.
 
 - [ ] N8N workflow: scrape crypto news + macro feeds every 2h
 - [ ] LLM (Claude/GPT) interprets headlines → structured JSON
-  - bullish/bearish score
-  - key event summary
-  - impact rating 0–10
-  - affected assets
+  - bullish/bearish score, key event summary, impact rating, affected assets
 - [ ] Daily market summary auto-generated → `/blog/{date}`
 - [ ] Blog index route `/blog`
 - [ ] Posts stored as markdown or SQLite
 - [ ] RSS feed at `/feed.xml`
-
-**Extension point**: `app/domain/signals.py` → `thesis` field is designed to accept LLM-generated text directly.
 
 ---
 
@@ -80,13 +101,11 @@ to Sentinel — the service, route, and template are untouched.
 
 > Replace the local snapshot with real XGBoost output from Sentinel.
 
-- [ ] `_load_snapshot()` in `signal_repository.py` replaced with SSH fetch from Sentinel
-- [ ] Sentinel runs `snapshot.py` — outputs signal JSON alongside position/trade data
+- [ ] `_load_raw()` in `signal_repository.py` replaced with SSH fetch from Sentinel
+- [ ] Sentinel `snapshot.py` extended to emit v2 signal envelope alongside position data
 - [ ] `/signals` route auto-refreshes (meta refresh or lightweight JS)
 - [ ] Dashboard Signal Feed card updated to "Live" status
-
-**Extension point**: `Signal` model already typed. `signal_repository.py` swap guide is
-in its module docstring — one function, zero template changes.
+- [ ] `data_source` shown on signals page updates to `"sentinel_ssh"` automatically
 
 ---
 
@@ -97,7 +116,7 @@ in its module docstring — one function, zero template changes.
 - [ ] `/onchain` route
 - [ ] L/S ratio, OI, exchange netflow for BTC + ETH
 - [ ] Data from `onchain_fetcher.py` pipeline (OKX API)
-- [ ] Chart.js sparklines for 7-day trend (single JS dependency, justified)
+- [ ] Chart.js sparklines for 7-day trend
 - [ ] Plain-language interpretation alongside each metric
 
 ---
@@ -121,3 +140,4 @@ in its module docstring — one function, zero template changes.
 - No hype, no price targets, no "this is financial advice" territory
 - Build audience before paywall
 - Extend the domain model (`app/domain/`) before building UI — contract first
+- Production never silently masks failures with mock data
