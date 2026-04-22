@@ -20,8 +20,16 @@ async def signal_feed(request: Request):
     generated_at_display: str | None = None
     if snapshot.generated_at:
         generated_at_display = (
-            snapshot.generated_at.replace("T", " ").replace("Z", " UTC")
+            snapshot.generated_at
+            .replace("T", " ")
+            .replace("Z", " UTC")
+            # Trim seconds if present ("12:00:00 UTC" → "12:00 UTC")
+            if "T" in snapshot.generated_at
+            else snapshot.generated_at
         )
+        # Trim trailing ":00 UTC" seconds for cleaner display
+        if generated_at_display and generated_at_display.endswith(":00 UTC"):
+            generated_at_display = generated_at_display[:-7] + " UTC"
 
     return templates.TemplateResponse("signals.html", {
         "request":            request,
@@ -39,4 +47,7 @@ async def signal_feed(request: Request):
         "generated_at":       generated_at_display,
         "model_version":      snapshot.model_version,
         "used_mock_fallback": snapshot.used_mock_fallback,
+        # observability
+        "snapshot_status":    snapshot.status,
+        "error_message":      snapshot.error_message,
     })

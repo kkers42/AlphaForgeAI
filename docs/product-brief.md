@@ -15,7 +15,7 @@ Retail crypto participants are drowning in noise — Twitter hype, influencer ca
 - **Onchain context** — long/short ratios, exchange netflows, and open interest made readable
 - **No hype** — no price predictions, no "guaranteed returns", no influencer framing
 
-## Current Build State (v0.3.0)
+## Current Build State (v0.3.1)
 
 | Module | Status |
 |--------|--------|
@@ -24,11 +24,12 @@ Retail crypto participants are drowning in noise — Twitter hype, influencer ca
 | Dashboard stub | ✅ Live |
 | Shared layout | ✅ `app/templates/base.html` |
 | Signal domain model | ✅ `app/domain/signals.py` |
-| Centralized config | ✅ `app/core/config.py` — v0.3.0, signal_source, allow_mock_fallback, Sentinel SSH fields |
-| Signal repository | ✅ `app/repositories/signal_repository.py` — local snapshot + Sentinel SSH loader, source dispatcher |
-| Snapshot file | ✅ `data/signals_snapshot.json` — metadata envelope format |
-| Signal service | ✅ `app/services/signal_service.py` — env-aware fallback, returns SignalSnapshot |
-| Signal feed page | ✅ `GET /signals` — source meta bar, conditional fallback notice |
+| Centralized config | ✅ `app/core/config.py` — v0.3.1, signal_source, fallback, Sentinel SSH + timeout |
+| Signal repository | ✅ `app/repositories/signal_repository.py` — local + SSH loaders, status/error_message |
+| Snapshot file | ✅ `data/signals_snapshot.json` — v2 metadata envelope |
+| Signal service | ✅ `app/services/signal_service.py` — env-aware fallback, status="fallback" |
+| Signal feed page | ✅ `GET /signals` — status dot, per-status notices (ok/empty/error/fallback) |
+| Health endpoints | ✅ `GET /health` + `GET /health/signals` — config summary, no live SSH probe |
 | Content pipeline | 🔲 Phase 3 |
 | Live signal feed (Sentinel SSH active) | 🔲 Phase 3 — set SIGNAL_SOURCE=sentinel_ssh to enable |
 | Onchain explorer | 🔲 Phase 4 |
@@ -57,6 +58,17 @@ GET /signals
 - `generated_at` — ISO timestamp from snapshot metadata
 - `model_version` — e.g. `"xgboost-nightly"`
 - `used_mock_fallback` — drives warning notice in UI
+- `status` — `"ok"` / `"empty"` / `"error"` / `"fallback"` (drives dot color + notice type)
+- `error_message` — short string, set on `"error"` paths, preserved through `"fallback"`
+
+**Status → UI mapping:**
+
+| status | Source bar dot | Notice style | Notice content |
+|--------|---------------|-------------|----------------|
+| `ok` | 🟢 green | info (grey) | "Signals loaded from ..." |
+| `empty` | 🟡 yellow | warn (yellow) | "Snapshot is empty..." |
+| `error` | 🔴 red | error (red) | error_message |
+| `fallback` | 🟡 yellow | warn (yellow) | "Mock fallback active" |
 
 **To go live**: set `SIGNAL_SOURCE=sentinel_ssh` and `SENTINEL_SSH_HOST=192.168.1.40`.
 Source, metadata, and UI all update automatically — no template or service changes needed.
@@ -80,7 +92,16 @@ can diagnose the failure rather than serving stale data undetected.
 | `SENTINEL_SSH_HOST` | *(empty)* | Sentinel IP or hostname — required for SSH source |
 | `SENTINEL_SSH_USER` | `kkers` | SSH username |
 | `SENTINEL_SSH_KEY_PATH` | *(empty)* | Private key path; omit to use SSH agent |
+| `SENTINEL_SSH_TIMEOUT` | `18` | Subprocess + ConnectTimeout in seconds |
+| `SENTINEL_SSH_STRICT_HOST_KEY` | `false` | Enable SSH known-hosts checking |
 | `SENTINEL_SNAPSHOT_COMMAND` | `python3 /data/ai-trading-bot/snapshot.py` | Command run on Sentinel |
+
+## Health Endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| `GET /health` | Fast check: service identity + signal source config summary |
+| `GET /health/signals` | Signal source config detail: host, timeout, command (no SSH probe) |
 
 ## Snapshot Format (v2)
 

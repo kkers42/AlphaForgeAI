@@ -17,7 +17,13 @@
     </div>
 </div>
 
+{# ── Source meta bar ──────────────────────────────────────────────────────── #}
 <div class="source-meta">
+    <span class="source-status-dot
+        {%- if snapshot_status == 'ok' %} src-ok
+        {%- elif snapshot_status == 'error' %} src-error
+        {%- else %} src-warn
+        {%- endif %}"></span>
     <span class="source-meta-item">
         Source: <strong>{{ data_source }}</strong>
     </span>
@@ -33,24 +39,51 @@
         Generated: <strong>{{ generated_at }}</strong>
     </span>
     {% endif %}
+    <span class="source-meta-sep">&middot;</span>
+    <span class="source-meta-item source-meta-status">
+        {% if snapshot_status == 'ok' %}live
+        {% elif snapshot_status == 'empty' %}empty
+        {% elif snapshot_status == 'error' %}source error
+        {% elif snapshot_status == 'fallback' %}mock fallback
+        {% else %}{{ snapshot_status }}
+        {% endif %}
+    </span>
 </div>
 
-{% if used_mock_fallback %}
-<div class="snapshot-notice snapshot-notice-warn">
-    &#9888; Snapshot unavailable — displaying mock fallback data.
-    Live model output ships in Phase 3.
-</div>
-{% elif not signals %}
-<div class="snapshot-notice snapshot-notice-warn">
-    &#9888; No signals available. The snapshot may be empty or the source unreachable.
-</div>
+{# ── Context notice ───────────────────────────────────────────────────────── #}
+{% if snapshot_status == 'error' %}
+    {# Source failed outright — show the reason regardless of fallback state #}
+    <div class="snapshot-notice snapshot-notice-error">
+        &#9888; Source error
+        {%- if error_message %}: {{ error_message }}{% endif %}.
+        {% if used_mock_fallback %}
+            Displaying mock fallback data instead.
+        {% else %}
+            No signal data available.
+        {% endif %}
+    </div>
+{% elif snapshot_status == 'fallback' %}
+    {# Source returned nothing (empty or unavailable) and service fell back to mocks #}
+    <div class="snapshot-notice snapshot-notice-warn">
+        &#9888; Snapshot unavailable — displaying mock fallback data.
+        Live model output ships in Phase 3.
+    </div>
+{% elif snapshot_status == 'empty' %}
+    {# Source responded but had no signals — production honest-empty state #}
+    <div class="snapshot-notice snapshot-notice-warn">
+        &#9888; No signals available. The snapshot is empty or the source returned no records.
+    </div>
 {% else %}
-<div class="snapshot-notice">
-    &#9432; Signals loaded from local snapshot.
-    Live Sentinel output ships in Phase 3.
-</div>
+    {# status == "ok" — normal operational state #}
+    <div class="snapshot-notice">
+        &#9432; Signals loaded from
+        {%- if data_source == 'sentinel_ssh' %} Sentinel (live SSH).
+        {%- else %} local snapshot. Live Sentinel output ships in Phase 3.
+        {%- endif %}
+    </div>
 {% endif %}
 
+{# ── Signal feed ──────────────────────────────────────────────────────────── #}
 {% if signals %}
 <div class="signal-feed">
     {% for signal in signals %}

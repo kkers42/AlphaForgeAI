@@ -2,8 +2,8 @@
 Signal repository — local snapshot and Sentinel SSH sources.
 
 Loads signal records from the configured source, validates each record into
-the Signal domain model, and returns a SignalSnapshot describing both the
-signals and the metadata embedded in the snapshot.
+the Signal domain model, and returns a SignalSnapshot describing the signals,
+their metadata, and the outcome of the load attempt.
 
 Snapshot format (v2 — object with metadata)
 --------------------------------------------
@@ -28,13 +28,21 @@ Controlled by ``settings.signal_source`` (env: ``SIGNAL_SOURCE``):
   ``sentinel_ssh``
       Executes ``settings.sentinel_snapshot_command`` on the Sentinel host via
       SSH and parses the JSON written to stdout.  Requires:
-        - SENTINEL_SSH_HOST   — IP or hostname (e.g. 192.168.1.40)
-        - SENTINEL_SSH_USER   — SSH username (default: kkers)
-        - SENTINEL_SSH_KEY_PATH — path to private key (optional; omit to use
-                                  the SSH agent or default key)
+        - SENTINEL_SSH_HOST             — IP or hostname (e.g. 192.168.1.40)
+        - SENTINEL_SSH_USER             — SSH username (default: kkers)
+        - SENTINEL_SSH_KEY_PATH         — path to private key (optional)
+        - SENTINEL_SSH_TIMEOUT          — seconds before subprocess timeout (default: 18)
+        - SENTINEL_SSH_STRICT_HOST_KEY  — true/false (default: false)
 
-      SSH failure (timeout, non-zero exit, invalid JSON) returns an empty
-      SignalSnapshot — the service layer decides whether to fall back to mocks.
+      SSH failure of any kind returns an error SignalSnapshot; the service
+      layer decides whether to fall back to mocks.
+
+SignalSnapshot.status values
+-----------------------------
+  "ok"       — signals loaded and parsed without errors
+  "empty"    — source responded but returned zero valid signals
+  "error"    — load or parse failed; error_message carries a short diagnosis
+  "fallback" — set by the service layer when it substitutes mock signals
 
 Extension point (add a new source)
 ------------------------------------
@@ -69,22 +77,43 @@ class SignalSnapshot:
     """
     The result returned by get_signals().
 
-    Carries both the validated signal list and whatever metadata was present
-    in the snapshot (or defaults when metadata is absent).
+    Carries the validated signal list, snapshot metadata, and the outcome of
+    the load attempt (``status`` / ``error_message``).
 
-    ``used_mock_fallback`` is False here; the service layer sets it to True
-    if it substitutes hardcoded mocks for an empty snapshot.
+    status
+    ------
+    "ok"       — data loaded and validated successfully
+    "empty"    — source returned no valid signals (not an error, just nothing there)
+    "error"    — load or parse failed; error_message has a short diagnosis
+    "fallback" — service substituted mock signals; error_message may still carry
+                 the original source failure reason
+
+    used_mock_fallback
+    ------------------
+    False here; the service sets it to True when it substitutes mocks.
     """
     signals:            list[Signal]
     source:             str
     generated_at:       str | None = None
     model_version:      str | None = None
     used_mock_fallback: bool = False
+    status:             str = "ok"       # "ok" | "empty" | "error" | "fallback"
+    error_message:      str | None = None
 
 
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+def _error_snapshot(source: str, message: str) -> SignalSnapshot:
+    """Return a safe empty snapshot tagged with the given error message."""
+    return SignalSnapshot(
+        signals=[],
+        source=source,
+        status="error",
+        error_message=message,
+    )
+
 
 def _load_local_snapshot_raw() -> "dict | list":
     """Read the local snapshot file and return the raw parsed JSON."""
@@ -103,45 +132,49 @@ def _load_sentinel_snapshot_raw() -> "dict | list":
     RuntimeError
         If the SSH command exits with a non-zero return code.
     subprocess.TimeoutExpired
-        If the SSH call does not complete within the timeout.
+        If the subprocess does not complete within sentinel_ssh_timeout_seconds.
     json.JSONDecodeError
         If stdout is not valid JSON.
     """
     if not settings.sentinel_ssh_host:
-        raise ValueError(
-            "SENTINEL_SSH_HOST is not configured — set the env var to enable "
-            "the sentinel_ssh source."
-        )
+        raise ValueError("SENTINEL_SSH_HOST is not configured")
+
+    strict = "yes" if settings.sentinel_ssh_strict_host_key_checking else "no"
+    timeout = settings.sentinel_ssh_timeout_seconds
 
     cmd = ["ssh"]
     if settings.sentinel_ssh_key_path:
         cmd += ["-i", settings.sentinel_ssh_key_path]
     cmd += [
-        "-o", "StrictHostKeyChecking=no",
-        "-o", "ConnectTimeout=15",
+        "-o", f"StrictHostKeyChecking={strict}",
+        "-o", f"ConnectTimeout={timeout}",
         f"{settings.sentinel_ssh_user}@{settings.sentinel_ssh_host}",
         settings.sentinel_snapshot_command,
     ]
 
     log.debug(
-        "Fetching Sentinel snapshot via SSH: %s@%s — %s",
+        "Sentinel SSH: %s@%s timeout=%ds cmd=%s",
         settings.sentinel_ssh_user,
         settings.sentinel_ssh_host,
+        timeout,
         settings.sentinel_snapshot_command,
     )
 
-    result = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+    result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout + 2)
 
     if result.returncode != 0:
-        stderr_preview = result.stderr.strip()[:300]
+        stderr_preview = result.stderr.strip()[:200]
         raise RuntimeError(
-            f"SSH to Sentinel exited {result.returncode}: {stderr_preview}"
+            f"SSH exited {result.returncode}: {stderr_preview or '(no stderr)'}"
         )
+
+    if not result.stdout.strip():
+        raise RuntimeError("SSH succeeded but stdout was empty")
 
     return json.loads(result.stdout)
 
 
-def _parse_snapshot(raw: "dict | list") -> SignalSnapshot:
+def _parse_snapshot(raw: "dict | list", source_label: str) -> SignalSnapshot:
     """
     Accept both the v2 object format and the legacy bare-array format.
     Validate each signal record; skip invalid ones with a warning.
@@ -159,21 +192,39 @@ def _parse_snapshot(raw: "dict | list") -> SignalSnapshot:
         meta = {k: raw.get(k) for k in ("generated_at", "model_version", "source")}
     else:
         raise ValueError(
-            f"Snapshot must be a JSON object or array, got {type(raw).__name__}"
+            f"Snapshot root must be a JSON object or array, got {type(raw).__name__}"
         )
 
     signals: list[Signal] = []
+    skipped = 0
     for i, record in enumerate(records):
         try:
             signals.append(Signal.model_validate(record))
         except ValidationError as exc:
-            log.warning("Skipping record %d — validation failed: %s", i, exc)
+            skipped += 1
+            log.warning(
+                "Skipping record %d (source=%s) — validation failed: %s",
+                i, source_label, exc,
+            )
+
+    if skipped:
+        log.warning(
+            "%d of %d signal records were invalid and skipped (source=%s)",
+            skipped, skipped + len(signals), source_label,
+        )
+
+    # If the snapshot's own "source" tag is absent, fall back to the
+    # configured source label so the UI always shows the right value.
+    resolved_source = meta.get("source") or source_label
+    if source_label == "sentinel_ssh" and resolved_source == "local_snapshot":
+        resolved_source = "sentinel_ssh"
 
     return SignalSnapshot(
         signals=signals,
-        source=meta.get("source") or "local_snapshot",
+        source=resolved_source,
         generated_at=meta.get("generated_at"),
         model_version=meta.get("model_version"),
+        status="ok",
     )
 
 
@@ -186,49 +237,90 @@ def get_signals() -> SignalSnapshot:
     Load and validate signals from the configured source.
 
     Source is determined by ``settings.signal_source``:
-      - ``"local_snapshot"``  → reads data/signals_snapshot.json
-      - ``"sentinel_ssh"``    → fetches snapshot from Sentinel via SSH
+      - ``"local_snapshot"`` → reads data/signals_snapshot.json
+      - ``"sentinel_ssh"``   → fetches snapshot from Sentinel via SSH
 
-    Returns a SignalSnapshot with an empty signal list on any I/O, network,
-    or parse error — the caller always receives a safe value.
+    Returns a SignalSnapshot on all paths — never raises.
+    status field reflects the outcome:
+      "ok"    → signals present and valid
+      "empty" → source responded but no valid signals
+      "error" → load or parse failed (error_message carries the reason)
     """
     source_label = settings.signal_source
 
+    # ── Load raw data ────────────────────────────────────────────────────────
     try:
         if source_label == "sentinel_ssh":
             raw = _load_sentinel_snapshot_raw()
         else:
             raw = _load_local_snapshot_raw()
+
     except FileNotFoundError:
         log.warning(
-            "Snapshot file not found at %s — returning empty snapshot",
+            "[signal_repository] local_snapshot: file not found at %s",
             _SNAPSHOT_PATH,
         )
-        return SignalSnapshot(signals=[], source=source_label)
+        return _error_snapshot(source_label, "Snapshot file not found")
+
     except subprocess.TimeoutExpired:
         log.warning(
-            "SSH to Sentinel timed out (%s) — returning empty snapshot",
+            "[signal_repository] sentinel_ssh: timed out after %ds (host=%s)",
+            settings.sentinel_ssh_timeout_seconds,
             settings.sentinel_ssh_host,
         )
-        return SignalSnapshot(signals=[], source=source_label)
-    except (json.JSONDecodeError, ValueError, RuntimeError, OSError) as exc:
+        return _error_snapshot(
+            source_label,
+            f"SSH timeout after {settings.sentinel_ssh_timeout_seconds}s",
+        )
+
+    except ValueError as exc:
+        # Misconfiguration (e.g. missing host)
+        log.warning("[signal_repository] sentinel_ssh: config error — %s", exc)
+        return _error_snapshot(source_label, f"Config error: {exc}")
+
+    except RuntimeError as exc:
+        # Non-zero SSH exit or empty stdout
+        log.warning("[signal_repository] sentinel_ssh: SSH error — %s", exc)
+        return _error_snapshot(source_label, f"SSH error: {exc}")
+
+    except json.JSONDecodeError as exc:
         log.warning(
-            "Could not load snapshot (source=%s): %s — returning empty snapshot",
+            "[signal_repository] %s: invalid JSON from source — %s",
             source_label, exc,
         )
-        return SignalSnapshot(signals=[], source=source_label)
+        return _error_snapshot(source_label, "Invalid JSON from source")
 
+    except OSError as exc:
+        log.warning(
+            "[signal_repository] %s: I/O error reading snapshot — %s",
+            source_label, exc,
+        )
+        return _error_snapshot(source_label, f"I/O error: {exc}")
+
+    # ── Parse and validate ───────────────────────────────────────────────────
     try:
-        snapshot = _parse_snapshot(raw)
-        # When the snapshot metadata omits a source tag, use the configured
-        # source label so the UI always shows the active source correctly.
-        if not snapshot.source or snapshot.source == "local_snapshot":
-            if source_label == "sentinel_ssh":
-                from dataclasses import replace
-                snapshot = replace(snapshot, source="sentinel_ssh")
-        return snapshot
+        snapshot = _parse_snapshot(raw, source_label)
     except ValueError as exc:
         log.warning(
-            "Could not parse snapshot: %s — returning empty snapshot", exc
+            "[signal_repository] %s: malformed snapshot payload — %s",
+            source_label, exc,
         )
-        return SignalSnapshot(signals=[], source=source_label)
+        return _error_snapshot(source_label, f"Malformed snapshot: {exc}")
+
+    # ── Classify empty vs ok ─────────────────────────────────────────────────
+    if not snapshot.signals:
+        log.info(
+            "[signal_repository] %s: snapshot loaded but contains no valid signals",
+            source_label,
+        )
+        from dataclasses import replace
+        return replace(snapshot, status="empty")
+
+    log.info(
+        "[signal_repository] %s: loaded %d signal(s) (model=%s generated=%s)",
+        source_label,
+        len(snapshot.signals),
+        snapshot.model_version or "unknown",
+        snapshot.generated_at or "unknown",
+    )
+    return snapshot

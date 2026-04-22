@@ -118,6 +118,41 @@ No code changes required. Template, service, and route are unchanged.
 
 ---
 
+## Phase 2.8 — Hardening & Observability ✅
+
+> Harden the Sentinel SSH path and improve runtime visibility before further feature work.
+
+- [x] `SignalSnapshot.status` field added: `"ok"` | `"empty"` | `"error"` | `"fallback"`
+- [x] `SignalSnapshot.error_message` field added: short safe string, set on failure paths
+- [x] `_error_snapshot()` helper — DRY construction of error snapshots
+- [x] Per-failure-mode log messages in `get_signals()`:
+      - `FileNotFoundError` → "local_snapshot: file not found at ..."
+      - `TimeoutExpired` → "sentinel_ssh: timed out after Ns (host=...)"
+      - `ValueError` → "sentinel_ssh: config error — ..."
+      - `RuntimeError` → "sentinel_ssh: SSH error — ..."
+      - `JSONDecodeError` → "invalid JSON from source"
+      - `OSError` → "I/O error reading snapshot"
+      - malformed payload → "malformed snapshot payload — ..."
+- [x] `_load_sentinel_snapshot_raw()` uses `settings.sentinel_ssh_timeout_seconds`
+      for both the subprocess timeout and the SSH `ConnectTimeout` option
+- [x] `_load_sentinel_snapshot_raw()` uses `settings.sentinel_ssh_strict_host_key_checking`
+      to set SSH `StrictHostKeyChecking` option
+- [x] Service sets `status="fallback"` (and preserves `error_message`) on mock substitution
+- [x] Route passes `snapshot_status` and `error_message` to template
+- [x] Template: source-meta bar shows colored status dot (green/yellow/red)
+- [x] Template: four distinct notice states — ok (info) / empty (warn) / error (red) / fallback (warn)
+- [x] `snapshot-notice-error` CSS class added (red, distinct from yellow warn)
+- [x] `source-status-dot` + `.src-ok` / `.src-warn` / `.src-error` CSS classes
+- [x] Config fields added: `sentinel_ssh_timeout_seconds` (default: 18),
+      `sentinel_ssh_strict_host_key_checking` (default: False)
+- [x] Config property added: `sentinel_configured` (True when host is set)
+- [x] `/health` extended with `signals` sub-object: source, allow_mock_fallback, sentinel_configured
+- [x] `/health/signals` new endpoint: full Sentinel config detail (no live SSH probe)
+- [x] Version bumped to `0.3.1`
+- [x] README and product-brief updated
+
+---
+
 ## Phase 3 — Live Signal Feed
 
 > Activate Sentinel SSH source and keep the feed current.

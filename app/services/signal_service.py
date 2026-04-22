@@ -50,19 +50,24 @@ def get_signals() -> SignalSnapshot:
     if not snapshot.signals:
         if settings.allow_mock_fallback:
             log.info(
-                "Repository returned no signals — using mock fallback "
+                "Repository returned no signals (status=%s) — using mock fallback "
                 "(allow_mock_fallback=True, environment=%s)",
+                snapshot.status,
                 settings.environment,
             )
+            # Preserve error_message from the original snapshot so the UI can
+            # show both "mock fallback active" and the original failure reason.
             return replace(
                 snapshot,
                 signals=get_mock_signals(),
                 source="mock_fallback",
                 used_mock_fallback=True,
+                status="fallback",
             )
         log.info(
-            "Repository returned no signals — returning empty feed "
+            "Repository returned no signals (status=%s) — returning empty feed "
             "(allow_mock_fallback=False, environment=%s)",
+            snapshot.status,
             settings.environment,
         )
 

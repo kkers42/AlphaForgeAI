@@ -260,6 +260,18 @@ nav a.nav-active { color: var(--text); font-weight: 600; }
 }
 .source-meta-item strong { color: var(--text); font-weight: 600; }
 .source-meta-sep { color: #444c56; }
+.source-meta-status { font-style: italic; }
+
+/* ── Source status dot (inside source-meta bar) ──────────────── */
+.source-status-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.src-ok    { background: var(--accent2); box-shadow: 0 0 4px var(--accent2); }
+.src-warn  { background: #e3b341;        box-shadow: 0 0 4px #e3b341; }
+.src-error { background: var(--danger);  box-shadow: 0 0 4px var(--danger); }
 
 /* ── Snapshot notice ─────────────────────────────────────────── */
 .snapshot-notice {
@@ -275,6 +287,11 @@ nav a.nav-active { color: var(--text); font-weight: 600; }
     border-color: #e3b341;
     color: #e3b341;
     background: #1c1a10;
+}
+.snapshot-notice-error {
+    border-color: var(--danger);
+    color: var(--danger);
+    background: #2d0d0d;
 }
 
 /* ── Signal feed ─────────────────────────────────────────────── */
