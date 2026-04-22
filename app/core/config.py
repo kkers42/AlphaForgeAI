@@ -9,6 +9,17 @@ class Settings:
     environment:  str = field(default_factory=lambda: os.getenv("ENVIRONMENT", "development"))
     signal_source: str = field(default_factory=lambda: os.getenv("SIGNAL_SOURCE", "local_snapshot"))
 
+    # Sentinel SSH connection settings (used when signal_source == "sentinel_ssh")
+    sentinel_ssh_host:         str = field(default_factory=lambda: os.getenv("SENTINEL_SSH_HOST", ""))
+    sentinel_ssh_user:         str = field(default_factory=lambda: os.getenv("SENTINEL_SSH_USER", "kkers"))
+    sentinel_ssh_key_path:     str = field(default_factory=lambda: os.getenv("SENTINEL_SSH_KEY_PATH", ""))
+    sentinel_snapshot_command: str = field(
+        default_factory=lambda: os.getenv(
+            "SENTINEL_SNAPSHOT_COMMAND",
+            "python3 /data/ai-trading-bot/snapshot.py",
+        )
+    )
+
     @property
     def is_production(self) -> bool:
         return self.environment == "production"

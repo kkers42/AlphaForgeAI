@@ -13,9 +13,9 @@ Built on a real XGBoost trading system, AlphaForgeAI surfaces quantitative signa
 | Backend | FastAPI (Python 3.11+) |
 | Templates | Jinja2 with shared base layout |
 | Styling | Vanilla CSS (dark theme) |
-| Config | `app/core/config.py` — version, environment, signal source, fallback policy |
+| Config | `app/core/config.py` — version, environment, signal source, fallback policy, Sentinel SSH settings |
 | Domain | `app/domain/signals.py` — typed Signal model |
-| Repository | `app/repositories/signal_repository.py` — loads from local JSON snapshot |
+| Repository | `app/repositories/signal_repository.py` — local snapshot or Sentinel SSH source |
 | Services | `app/services/signal_service.py` — calls repository; env-aware mock fallback |
 | ML Engine | XGBoost (nightly GPU retrain) |
 | Data | Coinbase Advanced Trade API, OKX Onchain API |
@@ -54,15 +54,14 @@ Open [http://localhost:8000](http://localhost:8000) in your browser.
 
 ---
 
-## Signal Data Source
+## Signal Data Sources
 
-Signals are loaded from a local JSON snapshot file:
+The active source is controlled by the `SIGNAL_SOURCE` environment variable
+(default: `local_snapshot`).
 
-```
-data/signals_snapshot.json
-```
+### `local_snapshot` (default)
 
-The snapshot uses an object envelope with embedded metadata:
+Reads `data/signals_snapshot.json` from the project root.
 
 ```json
 {
@@ -73,11 +72,33 @@ The snapshot uses an object envelope with embedded metadata:
 }
 ```
 
-The `/signals` page shows the source, model version, and generation time from
-this metadata. A bare JSON array (legacy format) is also accepted.
+A bare JSON array (legacy format) is also accepted.
 
-**To swap to Sentinel/SSH**: replace `_load_raw()` in
-`app/repositories/signal_repository.py`. See the swap guide in that file's docstring.
+### `sentinel_ssh`
+
+SSHes to the Sentinel trading server and runs `snapshot.py`, which emits the
+same v2 JSON envelope.  Requires three environment variables:
+
+| Variable | Description |
+|----------|-------------|
+| `SENTINEL_SSH_HOST` | IP or hostname (e.g. `192.168.1.40`) |
+| `SENTINEL_SSH_USER` | SSH username (default: `kkers`) |
+| `SENTINEL_SSH_KEY_PATH` | Path to private key (optional — omit to use SSH agent) |
+
+```powershell
+$env:SIGNAL_SOURCE       = "sentinel_ssh"
+$env:SENTINEL_SSH_HOST   = "192.168.1.40"
+$env:SENTINEL_SSH_KEY_PATH = "C:/Users/josh/.ssh/id_rsa"
+uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+On SSH failure (timeout, non-zero exit, invalid JSON) the repository returns
+an empty `SignalSnapshot`. In development the service falls back to mocks; in
+production the `/signals` page renders with a warning and zero cards.
+
+The `/signals` page shows the active source, model version, and generation
+time from the snapshot metadata.  No template or service changes are needed
+when switching sources.
 
 ---
 
@@ -152,8 +173,12 @@ AlphaForgeAI/
 | Variable | Default | Effect |
 |----------|---------|--------|
 | `ENVIRONMENT` | `development` | Controls debug mode, default fallback policy |
-| `SIGNAL_SOURCE` | `local_snapshot` | Informational label for the active source |
+| `SIGNAL_SOURCE` | `local_snapshot` | Active signal source: `local_snapshot` or `sentinel_ssh` |
 | `ALLOW_MOCK_FALLBACK` | *(derived from ENVIRONMENT)* | `true`/`false` — overrides fallback policy |
+| `SENTINEL_SSH_HOST` | *(empty)* | Required when `SIGNAL_SOURCE=sentinel_ssh` |
+| `SENTINEL_SSH_USER` | `kkers` | SSH username for Sentinel |
+| `SENTINEL_SSH_KEY_PATH` | *(empty)* | Private key path; omit to use SSH agent |
+| `SENTINEL_SNAPSHOT_COMMAND` | `python3 /data/ai-trading-bot/snapshot.py` | Command run on Sentinel |
 
 ```powershell
 # Simulate production behaviour locally
@@ -164,6 +189,12 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 # Force mock fallback even in production (emergency / demo)
 $env:ENVIRONMENT        = "production"
 $env:ALLOW_MOCK_FALLBACK = "true"
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+
+# Switch to live Sentinel signal source
+$env:SIGNAL_SOURCE         = "sentinel_ssh"
+$env:SENTINEL_SSH_HOST     = "192.168.1.40"
+$env:SENTINEL_SSH_KEY_PATH = "C:/Users/josh/.ssh/id_rsa"
 uvicorn app.main:app --host 0.0.0.0 --port 8000
 ```
 
@@ -176,8 +207,9 @@ uvicorn app.main:app --host 0.0.0.0 --port 8000
 - **Phase 2** ✅ Signal feed: typed service layer, working `/signals` page
 - **Phase 2.5** ✅ Repository layer: `signal_repository.py` loads from `data/signals_snapshot.json`
 - **Phase 2.6** ✅ Architecture cleanup: v0.3.0, metadata envelope, env-aware fallback, source UI
+- **Phase 2.7** ✅ Sentinel SSH source: `sentinel_ssh` loader, config fields, source dispatcher
 - **Phase 3** — Content pipeline: AI-written daily market posts via N8N + LLM
-- **Phase 3** — Live signals: swap `_load_raw()` for SSH fetch from Sentinel
+- **Phase 3** — Live signals: set `SIGNAL_SOURCE=sentinel_ssh` + `SENTINEL_SSH_HOST` to go live
 - **Phase 4** — Onchain explorer: L/S ratio, OI, netflow charts
 - **Phase 5** — Monetisation: auth, Stripe, email digest
 

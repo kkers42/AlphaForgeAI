@@ -97,15 +97,37 @@ error handling, the service, the route, and all templates — is unchanged.
 
 ---
 
+## Phase 2.7 — Sentinel SSH Source ✅
+
+> Wire the repository to the real Sentinel signal output without touching the UI.
+
+- [x] `_load_local_snapshot_raw()` — renamed from `_load_raw()`, unchanged behaviour
+- [x] `_load_sentinel_snapshot_raw()` — subprocess SSH to Sentinel, parses stdout JSON
+- [x] Source dispatcher in `get_signals()` — `settings.signal_source` selects loader
+- [x] Safe error handling for: missing config, SSH timeout, non-zero exit, bad JSON
+- [x] Source label override: when Sentinel metadata omits `source`, tag is set to
+      `"sentinel_ssh"` automatically so the UI always reflects the active source
+- [x] Config fields added: `sentinel_ssh_host`, `sentinel_ssh_user`,
+      `sentinel_ssh_key_path`, `sentinel_snapshot_command`
+- [x] Env vars documented: `SENTINEL_SSH_HOST`, `SENTINEL_SSH_USER`,
+      `SENTINEL_SSH_KEY_PATH`, `SENTINEL_SNAPSHOT_COMMAND`
+- [x] README and product-brief updated
+
+**To go live**: set `SIGNAL_SOURCE=sentinel_ssh` and `SENTINEL_SSH_HOST=192.168.1.40`.
+No code changes required. Template, service, and route are unchanged.
+
+---
+
 ## Phase 3 — Live Signal Feed
 
-> Replace the local snapshot with real XGBoost output from Sentinel.
+> Activate Sentinel SSH source and keep the feed current.
 
-- [ ] `_load_raw()` in `signal_repository.py` replaced with SSH fetch from Sentinel
-- [ ] Sentinel `snapshot.py` extended to emit v2 signal envelope alongside position data
+- [ ] Sentinel `snapshot.py` extended to emit a `signals` array in v2 envelope format
+      alongside existing position/trade data
+- [ ] `SIGNAL_SOURCE=sentinel_ssh` set in production environment (or `.env`)
 - [ ] `/signals` route auto-refreshes (meta refresh or lightweight JS)
 - [ ] Dashboard Signal Feed card updated to "Live" status
-- [ ] `data_source` shown on signals page updates to `"sentinel_ssh"` automatically
+- [ ] `data_source` on signals page shows `"sentinel_ssh"` automatically
 
 ---
 

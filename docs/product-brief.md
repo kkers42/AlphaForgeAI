@@ -24,13 +24,13 @@ Retail crypto participants are drowning in noise — Twitter hype, influencer ca
 | Dashboard stub | ✅ Live |
 | Shared layout | ✅ `app/templates/base.html` |
 | Signal domain model | ✅ `app/domain/signals.py` |
-| Centralized config | ✅ `app/core/config.py` — v0.3.0, signal_source, allow_mock_fallback |
-| Signal repository | ✅ `app/repositories/signal_repository.py` — v2 envelope + legacy support |
+| Centralized config | ✅ `app/core/config.py` — v0.3.0, signal_source, allow_mock_fallback, Sentinel SSH fields |
+| Signal repository | ✅ `app/repositories/signal_repository.py` — local snapshot + Sentinel SSH loader, source dispatcher |
 | Snapshot file | ✅ `data/signals_snapshot.json` — metadata envelope format |
 | Signal service | ✅ `app/services/signal_service.py` — env-aware fallback, returns SignalSnapshot |
 | Signal feed page | ✅ `GET /signals` — source meta bar, conditional fallback notice |
 | Content pipeline | 🔲 Phase 3 |
-| Live signal feed (Sentinel SSH) | 🔲 Phase 3 |
+| Live signal feed (Sentinel SSH active) | 🔲 Phase 3 — set SIGNAL_SOURCE=sentinel_ssh to enable |
 | Onchain explorer | 🔲 Phase 4 |
 | Auth + monetisation | 🔲 Phase 5 |
 
@@ -39,9 +39,12 @@ Retail crypto participants are drowning in noise — Twitter hype, influencer ca
 ```
 GET /signals
     └── signal_service.get_signals() → SignalSnapshot
-            ├── signal_repository.get_signals()         ← primary
-            │       └── _load_raw()                     ← reads data/signals_snapshot.json
-            │       └── _parse_snapshot()               ← validates, extracts metadata
+            ├── signal_repository.get_signals()             ← primary
+            │       ├── settings.signal_source dispatcher
+            │       │     "local_snapshot" → _load_local_snapshot_raw()
+            │       │     "sentinel_ssh"   → _load_sentinel_snapshot_raw()
+            │       │                              └── subprocess SSH → snapshot.py
+            │       └── _parse_snapshot()          ← validates, extracts metadata
             │
             └── mock fallback (if allowed by settings)
                     set used_mock_fallback = True
@@ -55,8 +58,8 @@ GET /signals
 - `model_version` — e.g. `"xgboost-nightly"`
 - `used_mock_fallback` — drives warning notice in UI
 
-**Next swap**: replace `_load_raw()` in `signal_repository.py` with an SSH call
-to Sentinel. Source, metadata, and UI all update automatically from the snapshot content.
+**To go live**: set `SIGNAL_SOURCE=sentinel_ssh` and `SENTINEL_SSH_HOST=192.168.1.40`.
+Source, metadata, and UI all update automatically — no template or service changes needed.
 
 ## Mock Fallback Policy
 
@@ -66,8 +69,18 @@ to Sentinel. Source, metadata, and UI all update automatically from the snapshot
 | `production` | **disabled** | `ALLOW_MOCK_FALLBACK=true` |
 
 Production does not silently inject mock data. An empty or unreachable snapshot
-shows an empty feed with a clear warning — operators can diagnose the failure
-rather than serving stale data undetected.
+(including SSH failures) shows an empty feed with a clear warning — operators
+can diagnose the failure rather than serving stale data undetected.
+
+## Sentinel SSH Config
+
+| Env var | Default | Purpose |
+|---------|---------|---------|
+| `SIGNAL_SOURCE` | `local_snapshot` | Set to `sentinel_ssh` to enable live feed |
+| `SENTINEL_SSH_HOST` | *(empty)* | Sentinel IP or hostname — required for SSH source |
+| `SENTINEL_SSH_USER` | `kkers` | SSH username |
+| `SENTINEL_SSH_KEY_PATH` | *(empty)* | Private key path; omit to use SSH agent |
+| `SENTINEL_SNAPSHOT_COMMAND` | `python3 /data/ai-trading-bot/snapshot.py` | Command run on Sentinel |
 
 ## Snapshot Format (v2)
 
