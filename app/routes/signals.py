@@ -4,7 +4,7 @@ from fastapi.templating import Jinja2Templates
 from pathlib import Path
 
 from app.core.config import settings
-from app.services.signal_service import get_mock_signals
+from app.services.signal_service import get_signals
 
 router = APIRouter()
 
@@ -13,7 +13,7 @@ templates = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "tem
 
 @router.get("/signals", response_class=HTMLResponse)
 async def signal_feed(request: Request):
-    signals = get_mock_signals()
+    signals = get_signals()
     return templates.TemplateResponse("signals.html", {
         "request":      request,
         "active_page":  "signals",

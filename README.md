@@ -15,7 +15,8 @@ Built on a real XGBoost trading system, AlphaForgeAI surfaces quantitative signa
 | Styling | Vanilla CSS (dark theme) |
 | Config | `app/core/config.py` — centralized settings |
 | Domain | `app/domain/signals.py` — typed Signal model |
-| Services | `app/services/signal_service.py` — mock signal source |
+| Repository | `app/repositories/signal_repository.py` — loads signals from local JSON snapshot |
+| Services | `app/services/signal_service.py` — calls repository; falls back to mock data |
 | ML Engine | XGBoost (nightly GPU retrain) |
 | Data | Coinbase Advanced Trade API, OKX Onchain API |
 
@@ -53,13 +54,31 @@ Open [http://localhost:8000](http://localhost:8000) in your browser.
 
 ---
 
+## Signal Data Source
+
+Signals are loaded from a local JSON snapshot file:
+
+```
+data/signals_snapshot.json
+```
+
+This file contains the same structure as the Sentinel live snapshot and acts as a
+stand-in until the SSH repository is wired in. To update signals, edit this file
+directly — the route and template require no changes.
+
+**To swap to the Sentinel/SSH source**: replace `_load_snapshot()` in
+`app/repositories/signal_repository.py` with a function that fetches the JSON
+over SSH. See the swap guide in that file's docstring.
+
+---
+
 ## Available Routes
 
 | Route | Description |
 |-------|-------------|
 | `GET /` | Homepage — hero + feature overview |
 | `GET /dashboard` | Dashboard — module status and roadmap view |
-| `GET /signals` | Signal feed — 7 mock signals with direction, confidence, regime, thesis |
+| `GET /signals` | Signal feed — repository-backed signals with direction, confidence, regime, thesis |
 | `GET /health` | Health check — returns service name, version, environment |
 
 ---
@@ -75,10 +94,13 @@ AlphaForgeAI/
 │   │   └── config.py            # Centralized settings (name, version, environment)
 │   ├── domain/
 │   │   ├── __init__.py
-│   │   └── signals.py           # Signal Pydantic model — typed contract for future pipeline
+│   │   └── signals.py           # Signal Pydantic model — typed contract
+│   ├── repositories/
+│   │   ├── __init__.py
+│   │   └── signal_repository.py # Loads + validates signals from local JSON snapshot
 │   ├── services/
 │   │   ├── __init__.py
-│   │   └── signal_service.py    # get_mock_signals() — swap for live source in Phase 3
+│   │   └── signal_service.py    # get_signals() → repository; get_mock_signals() → fallback
 │   ├── routes/
 │   │   ├── __init__.py
 │   │   ├── pages.py             # GET / and GET /health
@@ -92,6 +114,8 @@ AlphaForgeAI/
 │   └── static/
 │       └── css/
 │           └── styles.css       # Full dark-theme CSS
+├── data/
+│   └── signals_snapshot.json    # Local signal snapshot — stand-in for Sentinel output
 ├── docs/
 │   ├── product-brief.md
 │   └── roadmap.md
@@ -121,8 +145,9 @@ The environment label appears in the page footer and in the `/health` response.
 - **Phase 1** ✅ Foundation: FastAPI skeleton, branded homepage, docs
 - **Phase 1.5** ✅ Structure: config, base layout, dashboard stub, signal domain model
 - **Phase 2** ✅ Signal feed: typed service layer, mock signals, working `/signals` page
+- **Phase 2.5** ✅ Repository layer: `signal_repository.py` loads from `data/signals_snapshot.json`
 - **Phase 3** — Content pipeline: AI-written daily market posts via N8N + LLM
-- **Phase 4** — Live signals: wire `signal_service.py` to real XGBoost output from Sentinel
+- **Phase 3** — Live signals: swap `_load_snapshot()` for SSH fetch from Sentinel
 - **Phase 4** — Onchain explorer: L/S ratio, OI, netflow charts
 - **Phase 5** — Monetisation: auth, Stripe subscriptions, email digest
 

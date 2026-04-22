@@ -15,9 +15,7 @@ Retail crypto participants are drowning in noise — Twitter hype, influencer ca
 - **Onchain context** — long/short ratios, exchange netflows, and open interest made readable
 - **No hype** — no price predictions, no "guaranteed returns", no influencer framing
 
-## Current Build State (v0.2.0)
-
-The platform foundation is live:
+## Current Build State (v0.3.0)
 
 | Module | Status |
 |--------|--------|
@@ -27,12 +25,27 @@ The platform foundation is live:
 | Shared layout (base.html) | ✅ In place |
 | Signal domain model | ✅ Typed — `app/domain/signals.py` |
 | Centralized settings | ✅ `app/core/config.py` |
-| Signal service layer | ✅ `app/services/signal_service.py` — mock data, swap-ready |
+| Signal repository | ✅ `app/repositories/signal_repository.py` — reads from local JSON snapshot |
+| Signal service layer | ✅ `app/services/signal_service.py` — calls repository, mock fallback |
+| Signal snapshot file | ✅ `data/signals_snapshot.json` — 7 realistic signals, swap-ready |
 | Signal feed page | ✅ `GET /signals` — 7 signals with direction, confidence, thesis, features |
 | Content pipeline | 🔲 Phase 3 |
-| Signal feed (live) | 🔲 Phase 4 |
+| Live signal feed (Sentinel SSH) | 🔲 Phase 3 |
 | Onchain explorer | 🔲 Phase 4 |
 | Auth + monetisation | 🔲 Phase 5 |
+
+## Signal Architecture
+
+```
+GET /signals
+    └── signal_service.get_signals()
+            └── signal_repository.get_signals()         ← primary
+                    └── _load_snapshot()                ← reads data/signals_snapshot.json
+            └── signal_service.get_mock_signals()       ← fallback (snapshot missing/empty)
+```
+
+**Next swap**: replace `_load_snapshot()` in `signal_repository.py` with an SSH call to
+Sentinel. The service, route, and template are untouched.
 
 ## Signal Model Contract
 
@@ -44,8 +57,6 @@ A `Signal` has:
 - `regime` — market regime label (uptrend, downtrend, ranging)
 - `thesis` — plain-language explanation of the signal
 - `top_features` — optional ranked feature importance from XGBoost
-
-This contract exists now so the API surface, frontend rendering, and content pipeline can all be designed against it before the ML engine is wired in.
 
 ## Target Audience
 
@@ -69,10 +80,10 @@ This contract exists now so the API surface, frontend rendering, and content pip
 - **Config**: Centralized `Settings` dataclass, env-aware
 - **ML**: XGBoost, trained nightly on Orion (RTX 2080 Ti)
 - **Data**: Coinbase Advanced Trade API, OKX onchain API, Alternative.me F&G
-- **Content pipeline**: N8N → LLM (Claude/GPT) → structured JSON → blog post (Phase 2)
+- **Content pipeline**: N8N → LLM (Claude/GPT) → structured JSON → blog post (Phase 3)
 - **Hosting**: TBD (Hostinger VPS or Railway)
 
-## What It Is Not (Phase 1–2)
+## What It Is Not (Phase 1–3)
 
 - Not a trading platform — no order execution
 - Not a portfolio tracker — no account connection

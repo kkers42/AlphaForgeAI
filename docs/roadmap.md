@@ -37,7 +37,23 @@
 - [x] Dashboard Signal Feed card updated to "Preview" status with link to `/signals`
 - [x] CSS: direction badges, confidence bar, feature chips, mock notice, summary pills
 
-**Extension point**: replace `get_mock_signals()` body with a `SignalRepository.fetch_latest()` call — route and template unchanged.
+---
+
+## Phase 2.5 — Repository Layer ✅
+
+> Introduce a clean data loading architecture before wiring in live data.
+
+- [x] `app/repositories/signal_repository.py` — loads signals from local JSON snapshot
+- [x] `data/signals_snapshot.json` — 7 realistic signals; stand-in for Sentinel output
+- [x] `app/services/signal_service.py` refactored — calls repository as primary source,
+      `get_mock_signals()` retained as explicit fallback only
+- [x] `app/routes/signals.py` updated — calls `get_signals()` instead of `get_mock_signals()`
+- [x] Error handling: missing file, bad JSON, wrong type, and per-record validation failures
+      all produce safe empty/partial results without crashing the app
+- [x] Swap guide documented in `signal_repository.py` — one function to change for SSH source
+
+**Extension point**: replace `_load_snapshot()` in `signal_repository.py` with an SSH call
+to Sentinel — the service, route, and template are untouched.
 
 ---
 
@@ -60,17 +76,17 @@
 
 ---
 
-## Phase 3 — Signal Dashboard
+## Phase 3 — Live Signal Feed
 
-> Surface real model output publicly. Read-only, no auth.
+> Replace the local snapshot with real XGBoost output from Sentinel.
 
-- [ ] `/signals` route — today's top signals from XGBoost
-- [ ] Signal card UI: asset, direction, confidence %, regime, thesis, top features
-- [ ] Data source: Sentinel SSH snapshot (same as live trading dashboard)
-- [ ] 15-minute auto-refresh via meta refresh or lightweight JS
-- [ ] Wire `app/domain/signals.py` to real model output
+- [ ] `_load_snapshot()` in `signal_repository.py` replaced with SSH fetch from Sentinel
+- [ ] Sentinel runs `snapshot.py` — outputs signal JSON alongside position/trade data
+- [ ] `/signals` route auto-refreshes (meta refresh or lightweight JS)
+- [ ] Dashboard Signal Feed card updated to "Live" status
 
-**Extension point**: `Signal` model already typed. Add a `SignalRepository` that reads from Sentinel snapshot JSON.
+**Extension point**: `Signal` model already typed. `signal_repository.py` swap guide is
+in its module docstring — one function, zero template changes.
 
 ---
 

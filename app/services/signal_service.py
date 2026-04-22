@@ -1,19 +1,47 @@
 """
 Signal service layer.
 
-Responsible for providing Signal objects to routes.
-Currently returns mock data. When the ML engine is wired in,
-replace get_mock_signals() with a live source (Sentinel SSH snapshot,
-database read, or API call) — the route and template stay unchanged.
+Primary source: local JSON snapshot via SignalRepository.
+Fallback:       get_mock_signals() — used only when the snapshot returns nothing,
+                so the UI is never blank during development or if the file is absent.
+
+Swap guide (live source)
+-------------------------
+To point at a different repository, change the import:
+
+    from app.repositories.sentinel_repository import get_signals  # SSH source
+
+The rest of this file — and the route — stay unchanged.
 """
 
+import logging
+
 from app.domain.signals import Direction, Signal, Timeframe
+from app.repositories.signal_repository import get_signals as _repo_get_signals
+
+log = logging.getLogger(__name__)
+
+
+def get_signals() -> list[Signal]:
+    """
+    Return signals from the configured repository.
+
+    Falls back to mock data if the repository returns an empty list,
+    so the page always has content during development.
+    """
+    signals = _repo_get_signals()
+    if signals:
+        return signals
+    log.info("Repository returned no signals — falling back to mock data")
+    return get_mock_signals()
 
 
 def get_mock_signals() -> list[Signal]:
     """
-    Return a realistic set of mock signals for UI development and demos.
-    Values reflect plausible model output — not live market data.
+    Hardcoded mock signals.
+
+    Kept as an explicit fallback only — not the primary source.
+    Values reflect plausible model output, not live market data.
     """
     return [
         Signal(
