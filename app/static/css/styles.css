@@ -128,6 +128,91 @@ main {
 
 .feature-card p { color: var(--muted); font-size: 14px; }
 
+/* ── Buttons ─────────────────────────────────────────────────── */
+.btn-primary {
+    display: inline-block;
+    padding: 10px 22px;
+    background: var(--accent);
+    color: #fff;
+    border-radius: var(--radius);
+    font-size: 14px;
+    font-weight: 600;
+    transition: opacity 0.15s;
+}
+.btn-primary:hover { opacity: 0.85; text-decoration: none; }
+
+/* ── Active nav link ─────────────────────────────────────────── */
+nav a.nav-active { color: var(--text); font-weight: 600; }
+
+/* ── Page header ─────────────────────────────────────────────── */
+.page-header {
+    margin-bottom: 32px;
+    padding-bottom: 20px;
+    border-bottom: 1px solid var(--border);
+}
+.page-header h1 { font-size: 26px; font-weight: 800; color: #fff; }
+.page-subtitle   { color: var(--muted); margin-top: 6px; font-size: 14px; }
+
+/* ── Module grid (Dashboard) ─────────────────────────────────── */
+.module-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+}
+
+.module-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    transition: border-color 0.2s;
+}
+.module-card:hover { border-color: #444c56; }
+
+.module-card h3 { font-size: 16px; font-weight: 700; color: #fff; }
+.module-card p  { color: var(--muted); font-size: 14px; line-height: 1.6; flex: 1; }
+
+.module-status {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 4px;
+}
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+.dot-live    { background: var(--accent2); box-shadow: 0 0 5px var(--accent2); }
+.dot-pending { background: #6e7681; }
+.status-label { font-size: 11px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+
+.module-meta { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px; }
+.meta-tag {
+    font-size: 11px;
+    padding: 3px 9px;
+    background: #21262d;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--muted);
+}
+
+/* ── Environment badge (footer) ──────────────────────────────── */
+.env-badge {
+    font-size: 11px;
+    padding: 2px 8px;
+    border-radius: 8px;
+    background: #21262d;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
 /* ── Footer ──────────────────────────────────────────────────── */
 footer {
     background: var(--surface);

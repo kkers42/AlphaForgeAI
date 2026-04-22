@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{% block title %}AlphaForgeAI{% endblock %} — AI-Powered Crypto Insights</title>
+    <link rel="stylesheet" href="/static/css/styles.css" />
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <header>
+        <div class="header-inner">
+            <a href="/" class="logo" style="text-decoration:none">
+                <span class="logo-alpha">Alpha</span><span class="logo-forge">Forge</span><span class="logo-ai">AI</span>
+            </a>
+            <nav>
+                <a href="/" {% if active_page == 'home' %}class="nav-active"{% endif %}>Home</a>
+                <a href="/dashboard" {% if active_page == 'dashboard' %}class="nav-active"{% endif %}>Dashboard</a>
+                <a href="/health">Status</a>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer>
+        <p>
+            AlphaForgeAI v{{ app_version }} &mdash;
+            Built with Python, FastAPI &amp; XGBoost &mdash;
+            <span class="env-badge">{{ environment }}</span>
+        </p>
+    </footer>
+</body>
+</html>
