@@ -26,7 +26,22 @@
 
 ---
 
-## Phase 2 — Content Pipeline
+## Phase 2 — Signal Feed ✅
+
+> Turn the typed domain model into a visible, working page.
+
+- [x] `app/services/signal_service.py` — `get_mock_signals()` returns 7 realistic signals
+- [x] `app/routes/signals.py` — `GET /signals` with summary counts passed to template
+- [x] `app/templates/signals.html` — feed of signal cards: direction badge, confidence bar, regime tag, thesis, top features
+- [x] Nav updated to include Signals link with active state
+- [x] Dashboard Signal Feed card updated to "Preview" status with link to `/signals`
+- [x] CSS: direction badges, confidence bar, feature chips, mock notice, summary pills
+
+**Extension point**: replace `get_mock_signals()` body with a `SignalRepository.fetch_latest()` call — route and template unchanged.
+
+---
+
+## Phase 3 — Content Pipeline
 
 > Publish real AI-written content automatically. One daily post, no manual work.
 

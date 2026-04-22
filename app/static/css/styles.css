@@ -213,6 +213,160 @@ nav a.nav-active { color: var(--text); font-weight: 600; }
     letter-spacing: 0.5px;
 }
 
+/* ── Module preview state ────────────────────────────────────── */
+.dot-preview  { background: #e3b341; box-shadow: 0 0 5px #e3b341; }
+.module-link  {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--accent);
+}
+.module-link:hover { text-decoration: underline; }
+
+/* ── Page header flex (signals page) ────────────────────────── */
+.page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+.signal-summary { display: flex; gap: 8px; align-items: center; padding-top: 4px; }
+.sum-pill {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 12px;
+    border-radius: 12px;
+    border: 1px solid;
+}
+.sum-long  { color: var(--accent2); border-color: var(--accent2); background: #0d2818; }
+.sum-short { color: var(--danger);  border-color: var(--danger);  background: #2d0d0d; }
+.sum-flat  { color: var(--muted);   border-color: var(--border);  background: #21262d; }
+
+/* ── Mock notice ─────────────────────────────────────────────── */
+.mock-notice {
+    background: #1c2128;
+    border: 1px solid #444c56;
+    border-radius: var(--radius);
+    padding: 10px 16px;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 24px;
+}
+
+/* ── Signal feed ─────────────────────────────────────────────── */
+.signal-feed { display: flex; flex-direction: column; gap: 14px; }
+
+.signal-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-left: 3px solid var(--border);
+    border-radius: var(--radius);
+    padding: 18px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+.signal-long  { border-left-color: var(--accent2); }
+.signal-short { border-left-color: var(--danger); }
+.signal-flat  { border-left-color: #444c56; }
+
+.signal-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 10px;
+}
+
+.signal-identity { display: flex; align-items: center; gap: 10px; }
+
+.signal-symbol {
+    font-size: 18px;
+    font-weight: 800;
+    color: #fff;
+    min-width: 56px;
+}
+
+.dir-badge {
+    font-size: 11px;
+    font-weight: 700;
+    padding: 3px 10px;
+    border-radius: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+.dir-long  { background: #0d2818; color: var(--accent2); border: 1px solid var(--accent2); }
+.dir-short { background: #2d0d0d; color: var(--danger);  border: 1px solid var(--danger); }
+.dir-flat  { background: #21262d; color: var(--muted);   border: 1px solid var(--border); }
+
+.signal-timeframe {
+    font-size: 12px;
+    color: var(--muted);
+    background: #21262d;
+    border: 1px solid var(--border);
+    padding: 2px 8px;
+    border-radius: 4px;
+}
+
+.signal-right { display: flex; align-items: center; gap: 12px; }
+
+.confidence-wrap { display: flex; align-items: center; gap: 8px; }
+.confidence-bar {
+    width: 80px;
+    height: 6px;
+    background: #21262d;
+    border-radius: 3px;
+    overflow: hidden;
+}
+.confidence-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.3s ease;
+}
+.conf-high { background: var(--accent2); }
+.conf-mid  { background: var(--accent); }
+.conf-low  { background: #e3b341; }
+.confidence-label { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+.regime-tag {
+    font-size: 11px;
+    color: var(--muted);
+    background: #21262d;
+    border: 1px solid var(--border);
+    padding: 3px 9px;
+    border-radius: 10px;
+    text-transform: capitalize;
+}
+
+.signal-thesis {
+    font-size: 14px;
+    color: var(--text);
+    line-height: 1.65;
+    margin: 0;
+}
+
+/* ── Feature chips ───────────────────────────────────────────── */
+.feature-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    padding-top: 4px;
+    border-top: 1px solid #21262d;
+}
+.feature-label { font-size: 11px; color: var(--muted); margin-right: 2px; }
+.feature-chip {
+    font-size: 11px;
+    background: #21262d;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 2px 9px;
+    color: var(--text);
+}
+.feature-weight { color: var(--muted); margin-left: 3px; }
+
 /* ── Footer ──────────────────────────────────────────────────── */
 footer {
     background: var(--surface);

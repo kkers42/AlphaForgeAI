@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block title %}Signal Feed{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Signal Feed</h1>
+        <p class="page-subtitle">
+            XGBoost model output — direction, confidence, regime, and thesis for each asset.
+        </p>
+    </div>
+    <div class="signal-summary">
+        <span class="sum-pill sum-long">{{ long_count }} LONG</span>
+        <span class="sum-pill sum-short">{{ short_count }} SHORT</span>
+        <span class="sum-pill sum-flat">{{ flat_count }} FLAT</span>
+    </div>
+</div>
+
+<div class="mock-notice">
+    &#9432; These are illustrative signals using mock data. Live model output ships in Phase 3.
+</div>
+
+<div class="signal-feed">
+    {% for signal in signals %}
+    <div class="signal-card signal-{{ signal.direction | lower }}">
+
+        <div class="signal-card-header">
+            <div class="signal-identity">
+                <span class="signal-symbol">{{ signal.symbol }}</span>
+                <span class="dir-badge dir-{{ signal.direction | lower }}">{{ signal.direction }}</span>
+                <span class="signal-timeframe">{{ signal.timeframe }}</span>
+            </div>
+            <div class="signal-right">
+                <div class="confidence-wrap">
+                    <div class="confidence-bar">
+                        <div class="confidence-fill conf-{{ 'high' if signal.confidence >= 0.70 else ('mid' if signal.confidence >= 0.55 else 'low') }}"
+                             style="width: {{ (signal.confidence * 100) | round | int }}%"></div>
+                    </div>
+                    <span class="confidence-label">{{ (signal.confidence * 100) | round | int }}% conf.</span>
+                </div>
+                <span class="regime-tag">{{ signal.regime }}</span>
+            </div>
+        </div>
+
+        <p class="signal-thesis">{{ signal.thesis }}</p>
+
+        {% if signal.top_features %}
+        <div class="feature-row">
+            <span class="feature-label">Top features:</span>
+            {% for name, weight in signal.top_features %}
+            <span class="feature-chip">
+                {{ name }} <span class="feature-weight">{{ (weight * 100) | round | int }}%</span>
+            </span>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

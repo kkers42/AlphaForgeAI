@@ -27,8 +27,10 @@ The platform foundation is live:
 | Shared layout (base.html) | ✅ In place |
 | Signal domain model | ✅ Typed — `app/domain/signals.py` |
 | Centralized settings | ✅ `app/core/config.py` |
-| Content pipeline | 🔲 Phase 2 |
-| Signal feed (live) | 🔲 Phase 3 |
+| Signal service layer | ✅ `app/services/signal_service.py` — mock data, swap-ready |
+| Signal feed page | ✅ `GET /signals` — 7 signals with direction, confidence, thesis, features |
+| Content pipeline | 🔲 Phase 3 |
+| Signal feed (live) | 🔲 Phase 4 |
 | Onchain explorer | 🔲 Phase 4 |
 | Auth + monetisation | 🔲 Phase 5 |
 
