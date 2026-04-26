@@ -121,6 +121,15 @@ def _load_local_snapshot_raw() -> "dict | list":
         return json.load(fh)
 
 
+def _load_file_raw() -> "dict | list":
+    """Read the file at settings.signal_file_path and return the raw parsed JSON."""
+    path = settings.signal_file_path
+    if not path:
+        raise ValueError("SIGNAL_FILE_PATH is not configured")
+    with open(path, encoding="utf-8") as fh:
+        return json.load(fh)
+
+
 def _load_sentinel_snapshot_raw() -> "dict | list":
     """
     SSH to Sentinel, run the snapshot script, and return the parsed JSON.
@@ -231,6 +240,58 @@ def _parse_snapshot(raw: "dict | list", source_label: str) -> SignalSnapshot:
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
+
+def get_signals_from_file() -> SignalSnapshot:
+    """
+    Load and validate signals from the file at SIGNAL_FILE_PATH.
+
+    Returns a SignalSnapshot on all paths — never raises.
+    """
+    source_label = "file"
+    try:
+        raw = _load_file_raw()
+
+    except FileNotFoundError:
+        log.warning(
+            "[signal_repository] file: file not found at %s",
+            settings.signal_file_path,
+        )
+        return _error_snapshot(
+            source_label,
+            f"Signal file not found: {settings.signal_file_path or '(path not set)'}",
+        )
+
+    except ValueError as exc:
+        log.warning("[signal_repository] file: config error — %s", exc)
+        return _error_snapshot(source_label, f"Config error: {exc}")
+
+    except json.JSONDecodeError as exc:
+        log.warning("[signal_repository] file: invalid JSON — %s", exc)
+        return _error_snapshot(source_label, "Invalid JSON in signal file")
+
+    except OSError as exc:
+        log.warning("[signal_repository] file: I/O error — %s", exc)
+        return _error_snapshot(source_label, f"I/O error: {exc}")
+
+    try:
+        snapshot = _parse_snapshot(raw, source_label)
+    except ValueError as exc:
+        log.warning("[signal_repository] file: malformed payload — %s", exc)
+        return _error_snapshot(source_label, f"Malformed snapshot: {exc}")
+
+    if not snapshot.signals:
+        log.info("[signal_repository] file: loaded but contains no valid signals")
+        from dataclasses import replace
+        return replace(snapshot, status="empty")
+
+    log.info(
+        "[signal_repository] file: loaded %d signal(s) (model=%s generated=%s)",
+        len(snapshot.signals),
+        snapshot.model_version or "unknown",
+        snapshot.generated_at or "unknown",
+    )
+    return snapshot
+
 
 def get_signals() -> SignalSnapshot:
     """

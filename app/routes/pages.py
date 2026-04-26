@@ -34,7 +34,9 @@ async def health():
         "version":     settings.app_version,
         "environment": settings.environment,
         "signals": {
+            "provider":            settings.signal_provider,
             "source":              settings.signal_source,
+            "file_path_set":       bool(settings.signal_file_path),
             "allow_mock_fallback": settings.allow_mock_fallback,
             "sentinel_configured": settings.sentinel_configured,
         },
@@ -63,6 +65,8 @@ async def health_signals():
         })
 
     return {
+        "provider":            settings.signal_provider,
+        "file_path_set":       bool(settings.signal_file_path),
         "source":              settings.signal_source,
         "allow_mock_fallback": settings.allow_mock_fallback,
         "sentinel":            sentinel_info,

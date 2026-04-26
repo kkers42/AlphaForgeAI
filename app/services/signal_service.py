@@ -29,23 +29,49 @@ from dataclasses import replace
 from app.core.config import settings
 from app.domain.signals import Direction, Signal, Timeframe
 from app.repositories.signal_repository import SignalSnapshot
-from app.repositories.signal_repository import get_signals as _repo_get_signals
+from app.repositories.signal_repository import (
+    get_signals as _repo_get_signals,
+    get_signals_from_file as _repo_get_signals_from_file,
+)
 
 log = logging.getLogger(__name__)
 
 
 def get_signals() -> SignalSnapshot:
     """
-    Return a SignalSnapshot from the configured repository.
+    Return a SignalSnapshot from the configured provider.
 
-    If the repository returns no signals and ``settings.allow_mock_fallback``
-    is True, the snapshot is replaced with hardcoded mock signals and
-    ``used_mock_fallback`` is set to True so the template can show a notice.
+    Provider selection (SIGNAL_PROVIDER env var):
+      "mock" — hardcoded mock signals served directly as the primary source.
+      "file" — signals loaded from SIGNAL_FILE_PATH; falls back to mocks if
+               the file is missing/invalid and allow_mock_fallback is True.
+      other  — legacy SIGNAL_SOURCE path (local_snapshot / sentinel_ssh).
 
-    If fallback is disabled (production default), an empty snapshot is
-    returned as-is — the page renders with zero signal cards.
+    If any provider returns no signals and ``settings.allow_mock_fallback``
+    is True the response is replaced with hardcoded mocks.
     """
-    snapshot = _repo_get_signals()
+    provider = settings.signal_provider
+
+    # ── Mock provider: serve mocks directly (no file I/O) ───────────────────
+    if provider == "mock":
+        log.info(
+            "signal_provider=mock — serving mock signals as primary source "
+            "(environment=%s)",
+            settings.environment,
+        )
+        return SignalSnapshot(
+            signals=get_mock_signals(),
+            source="mock",
+            used_mock_fallback=False,
+            status="ok",
+        )
+
+    # ── File provider: load from SIGNAL_FILE_PATH ────────────────────────────
+    if provider == "file":
+        snapshot = _repo_get_signals_from_file()
+    else:
+        # Legacy: local_snapshot / sentinel_ssh via SIGNAL_SOURCE
+        snapshot = _repo_get_signals()
 
     if not snapshot.signals:
         if settings.allow_mock_fallback:
