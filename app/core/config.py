@@ -5,9 +5,17 @@ from dataclasses import dataclass, field
 @dataclass
 class Settings:
     app_name:     str = "AlphaForgeAI"
-    app_version:  str = "0.3.1"
+    app_version:  str = "0.4.0"
     environment:  str = field(default_factory=lambda: os.getenv("ENVIRONMENT", "development"))
     signal_source: str = field(default_factory=lambda: os.getenv("SIGNAL_SOURCE", "local_snapshot"))
+
+    # ── Signal provider ──────────────────────────────────────────────────────
+    # High-level provider selection.  "mock" serves hardcoded signals directly
+    # (no file I/O).  "file" reads from signal_file_path.  The legacy
+    # signal_source values (local_snapshot / sentinel_ssh) are used when
+    # signal_provider is not set to mock or file.
+    signal_provider:  str = field(default_factory=lambda: os.getenv("SIGNAL_PROVIDER", "mock"))
+    signal_file_path: str = field(default_factory=lambda: os.getenv("SIGNAL_FILE_PATH", ""))
 
     # ── Sentinel SSH connection ──────────────────────────────────────────────
     # Required when signal_source == "sentinel_ssh".
