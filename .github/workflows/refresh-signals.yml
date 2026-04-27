@@ -33,8 +33,6 @@ jobs:
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
       - name: Set up Python
         uses: actions/setup-python@v5
@@ -51,10 +49,10 @@ jobs:
           echo "[refresh-signals] starting refresh at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           echo "[refresh-signals] asset_count=${ASSET_COUNT}"
           python scripts/generate_signals.py --assets "${ASSET_COUNT}"
-          python -m json.tool data/signals/latest.json > /tmp/latest.json
+          python -m json.tool data/signals/latest.json > /dev/null
           echo "[refresh-signals] snapshot generated and JSON validated"
 
-      - name: Smoke generated snapshot
+      - name: Start app
         run: |
           set -euo pipefail
           python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > uvicorn.log 2>&1 &
@@ -62,12 +60,16 @@ jobs:
 
           for i in {1..20}; do
             if curl --fail --silent --show-error http://127.0.0.1:8000/health > /tmp/health.json; then
-              break
+              exit 0
             fi
             sleep 1
           done
+          cat uvicorn.log
+          exit 1
 
-          curl --fail --silent --show-error http://127.0.0.1:8000/health | tee /tmp/health.json
+      - name: Smoke routes
+        run: |
+          set -euo pipefail
           python -c "import json; data=json.load(open('/tmp/health.json')); assert data['status'] == 'ok'; assert data['signal_engine']['healthy'] is True"
 
           curl --fail --silent --show-error http://127.0.0.1:8000/signals > /tmp/signals.html
