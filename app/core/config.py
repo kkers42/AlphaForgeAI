@@ -19,6 +19,9 @@ class Settings:
     signal_file_path: str = field(
         default_factory=lambda: os.getenv("SIGNAL_FILE_PATH", "data/signals/latest.json")
     )
+    signal_freshness_warn_hours: int = field(
+        default_factory=lambda: int(os.getenv("SIGNAL_FRESHNESS_WARN_HOURS", "24"))
+    )
 
     # ── Sentinel SSH connection ──────────────────────────────────────────────
     # Required when signal_source == "sentinel_ssh".

@@ -1,13 +1,106 @@
+import logging
+from datetime import datetime, timezone
+from pathlib import Path
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
-from pathlib import Path
 
 from app.core.config import settings
+from app.repositories.signal_repository import get_signals_from_file
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "templates")
+
+
+def _parse_utc_timestamp(value: str | None) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(
+            timezone.utc
+        )
+    except ValueError:
+        return None
+
+
+def _signal_engine_health() -> dict:
+    """
+    Lightweight signal engine health for Cloud Run and uptime monitors.
+
+    This does local file inspection only for the file provider. It never probes
+    Sentinel SSH or performs network work.
+    """
+    provider = settings.signal_provider
+    file_path = settings.signal_file_path
+    snapshot_path = Path(file_path) if file_path else None
+    snapshot_present = bool(snapshot_path and snapshot_path.exists())
+
+    engine: dict = {
+        "provider": provider,
+        "healthy": True,
+        "status": "ok",
+        "snapshot": {
+            "path_configured": bool(file_path),
+            "present": snapshot_present,
+            "status": "not_required" if provider == "mock" else "unknown",
+        },
+        "last_generated_at": None,
+        "signal_count": None,
+        "schema_version": None,
+        "freshness": {
+            "status": "unknown",
+            "age_seconds": None,
+            "warn_after_hours": settings.signal_freshness_warn_hours,
+        },
+        "refresh_job": {
+            "configured": False,
+            "status": "not_configured",
+        },
+        "error": None,
+    }
+
+    if provider == "mock":
+        return engine
+
+    if provider != "file":
+        engine["status"] = "configured"
+        engine["snapshot"]["status"] = "not_checked"
+        return engine
+
+    snapshot = get_signals_from_file()
+    engine["snapshot"]["status"] = snapshot.status
+    engine["last_generated_at"] = snapshot.generated_at
+    engine["signal_count"] = (
+        snapshot.signal_count
+        if snapshot.signal_count is not None
+        else len(snapshot.signals)
+    )
+    engine["schema_version"] = snapshot.schema_version
+
+    generated_at = _parse_utc_timestamp(snapshot.generated_at)
+    if generated_at:
+        age_seconds = int((datetime.now(timezone.utc) - generated_at).total_seconds())
+        engine["freshness"]["age_seconds"] = max(age_seconds, 0)
+        engine["freshness"]["status"] = (
+            "stale"
+            if age_seconds > settings.signal_freshness_warn_hours * 3600
+            else "fresh"
+        )
+    elif snapshot_present:
+        engine["freshness"]["status"] = "unknown"
+
+    if snapshot.status == "ok" and snapshot.signals:
+        return engine
+
+    engine["healthy"] = settings.allow_mock_fallback
+    engine["status"] = "degraded" if settings.allow_mock_fallback else "unhealthy"
+    if snapshot.error_message:
+        logger.warning("signal engine health: %s", snapshot.error_message)
+    engine["error"] = snapshot.status if snapshot.status != "ok" else None
+    return engine
 
 
 @router.get("/", response_class=HTMLResponse)
@@ -23,11 +116,12 @@ async def homepage(request: Request):
 @router.get("/health", response_class=JSONResponse)
 async def health():
     """
-    Basic health check.  Fast — no I/O, no SSH.
+    Basic health check.  Fast local checks only — no SSH.
 
     Returns service identity, version, environment, and a lightweight
     summary of the signal source configuration.
     """
+    signal_engine = _signal_engine_health()
     return {
         "status":      "ok",
         "service":     settings.app_name,
@@ -40,6 +134,7 @@ async def health():
             "allow_mock_fallback": settings.allow_mock_fallback,
             "sentinel_configured": settings.sentinel_configured,
         },
+        "signal_engine": signal_engine,
     }
 
 
@@ -64,10 +159,12 @@ async def health_signals():
             "command":          settings.sentinel_snapshot_command,
         })
 
+    signal_engine = _signal_engine_health()
     return {
         "provider":            settings.signal_provider,
         "file_path_set":       bool(settings.signal_file_path),
         "source":              settings.signal_source,
         "allow_mock_fallback": settings.allow_mock_fallback,
+        "engine":              signal_engine,
         "sentinel":            sentinel_info,
     }
