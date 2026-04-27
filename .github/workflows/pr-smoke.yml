@@ -40,6 +40,11 @@ jobs:
           echo $! > uvicorn.pid
 
           for i in {1..20}; do
+            if ! kill -0 "$(cat uvicorn.pid)" 2>/dev/null; then
+              echo "uvicorn exited early"
+              cat uvicorn.log
+              exit 1
+            fi
             if curl --fail --silent --show-error http://127.0.0.1:8000/health > /tmp/health.json; then
               exit 0
             fi
@@ -53,13 +58,30 @@ jobs:
         run: |
           curl --fail --silent --show-error http://127.0.0.1:8000/health | tee /tmp/health.json
           python -m json.tool /tmp/health.json > /dev/null
-          python -c "import json; data=json.load(open('/tmp/health.json')); assert data['status'] == 'ok'; assert data['signal_engine']['healthy'] is True"
+          python -c "
+import json, sys
+data = json.load(open('/tmp/health.json'))
+if data.get('status') != 'ok' or data.get('signal_engine', {}).get('healthy') is not True:
+    print('FAIL - /health response:')
+    print(json.dumps(data, indent=2))
+    sys.exit(1)
+"
 
       - name: Smoke /signals
         run: |
           curl --fail --silent --show-error http://127.0.0.1:8000/signals > /tmp/signals.html
           test -s /tmp/signals.html
           grep -q "Signal Feed" /tmp/signals.html
+          python -c "
+import re, sys
+html = open('/tmp/signals.html').read()
+counts = re.findall(r'(\d+)\s+signals?', html, re.IGNORECASE)
+total = int(counts[0]) if counts else 0
+if total == 0:
+    print('FAIL - no signals rendered in /signals page')
+    sys.exit(1)
+print(f'OK - {total} signal(s) rendered')
+"
 
       - name: Stop app
         if: always()
