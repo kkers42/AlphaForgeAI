@@ -95,5 +95,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add data/signals/latest.json
           git commit -m "chore: refresh generated signals snapshot"
-          git push
+          git push origin HEAD
           echo "[refresh-signals] committed refreshed snapshot"
