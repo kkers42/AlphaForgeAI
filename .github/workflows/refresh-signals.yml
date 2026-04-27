@@ -51,7 +51,7 @@ jobs:
           echo "[refresh-signals] starting refresh at $(date -u +%Y-%m-%dT%H:%M:%SZ)"
           echo "[refresh-signals] asset_count=${ASSET_COUNT}"
           python scripts/generate_signals.py --assets "${ASSET_COUNT}"
-          python -m json.tool data/signals/latest.json > /tmp/latest.json
+          python -m json.tool data/signals/latest.json > /dev/null
           echo "[refresh-signals] snapshot generated and JSON validated"
 
       - name: Smoke generated snapshot
