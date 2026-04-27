@@ -10,12 +10,18 @@ class Settings:
     signal_source: str = field(default_factory=lambda: os.getenv("SIGNAL_SOURCE", "local_snapshot"))
 
     # ── Signal provider ──────────────────────────────────────────────────────
-    # High-level provider selection.  "mock" serves hardcoded signals directly
-    # (no file I/O).  "file" reads from signal_file_path.  The legacy
+    # High-level provider selection.  "file" reads the persisted latest
+    # snapshot by default.  "mock" serves hardcoded signals directly
+    # (no file I/O).  The legacy
     # signal_source values (local_snapshot / sentinel_ssh) are used when
     # signal_provider is not set to mock or file.
-    signal_provider:  str = field(default_factory=lambda: os.getenv("SIGNAL_PROVIDER", "mock"))
-    signal_file_path: str = field(default_factory=lambda: os.getenv("SIGNAL_FILE_PATH", ""))
+    signal_provider:  str = field(default_factory=lambda: os.getenv("SIGNAL_PROVIDER", "file"))
+    signal_file_path: str = field(
+        default_factory=lambda: os.getenv("SIGNAL_FILE_PATH", "data/signals/latest.json")
+    )
+    signal_freshness_warn_hours: int = field(
+        default_factory=lambda: int(os.getenv("SIGNAL_FRESHNESS_WARN_HOURS", "24"))
+    )
 
     # ── Sentinel SSH connection ──────────────────────────────────────────────
     # Required when signal_source == "sentinel_ssh".

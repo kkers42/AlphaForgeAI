@@ -54,8 +54,10 @@ handling, the service, the route, and all templates — is unchanged.
 
 import json
 import logging
+import os
 import subprocess
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -65,7 +67,13 @@ from app.domain.signals import Signal
 
 log = logging.getLogger(__name__)
 
-_SNAPSHOT_PATH = Path(__file__).resolve().parents[2] / "data" / "signals_snapshot.json"
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_SNAPSHOT_PATH = _REPO_ROOT / "data" / "signals_snapshot.json"
+SNAPSHOT_SCHEMA_VERSION = 1
+LATEST_SNAPSHOT_PATH = _REPO_ROOT / "data" / "signals" / "latest.json"
+
+_FRESHNESS_WARN_HOURS = 2
+_FRESHNESS_FAIL_HOURS = 24
 
 
 # ---------------------------------------------------------------------------
@@ -96,6 +104,8 @@ class SignalSnapshot:
     source:             str
     generated_at:       str | None = None
     model_version:      str | None = None
+    schema_version:     int | None = None
+    signal_count:       int | None = None
     used_mock_fallback: bool = False
     status:             str = "ok"       # "ok" | "empty" | "error" | "fallback"
     error_message:      str | None = None
@@ -123,9 +133,12 @@ def _load_local_snapshot_raw() -> "dict | list":
 
 def _load_file_raw() -> "dict | list":
     """Read the file at settings.signal_file_path and return the raw parsed JSON."""
-    path = settings.signal_file_path
-    if not path:
+    path_str = settings.signal_file_path
+    if not path_str:
         raise ValueError("SIGNAL_FILE_PATH is not configured")
+    path = Path(path_str)
+    if not path.is_absolute():
+        path = _REPO_ROOT / path
     with open(path, encoding="utf-8") as fh:
         return json.load(fh)
 
@@ -198,7 +211,16 @@ def _parse_snapshot(raw: "dict | list", source_label: str) -> SignalSnapshot:
             raise ValueError(
                 f"snapshot['signals'] must be a list, got {type(records).__name__}"
             )
-        meta = {k: raw.get(k) for k in ("generated_at", "model_version", "source")}
+        meta = {
+            k: raw.get(k)
+            for k in (
+                "generated_at",
+                "model_version",
+                "source",
+                "schema_version",
+                "signal_count",
+            )
+        }
     else:
         raise ValueError(
             f"Snapshot root must be a JSON object or array, got {type(raw).__name__}"
@@ -233,8 +255,89 @@ def _parse_snapshot(raw: "dict | list", source_label: str) -> SignalSnapshot:
         source=resolved_source,
         generated_at=meta.get("generated_at"),
         model_version=meta.get("model_version"),
+        schema_version=meta.get("schema_version"),
+        signal_count=(
+            meta.get("signal_count")
+            if meta.get("signal_count") is not None
+            else len(signals)
+        ),
         status="ok",
     )
+
+
+def validate_snapshot_payload(
+    raw: "dict | list",
+    source_label: str = "file",
+    require_schema: bool = False,
+) -> SignalSnapshot:
+    """
+    Validate a snapshot payload and return its parsed SignalSnapshot.
+
+    Legacy local snapshots may omit persistence metadata.  Persisted latest
+    snapshots use schema_version=1 and must carry generated_at, source, and a
+    signal_count that matches the signals array.
+    """
+    if require_schema and not (isinstance(raw, dict) and "schema_version" in raw):
+        raise ValueError("persisted snapshot must include schema_version")
+
+    if isinstance(raw, dict) and "schema_version" in raw:
+        schema_version = raw.get("schema_version")
+        if schema_version != SNAPSHOT_SCHEMA_VERSION:
+            raise ValueError(
+                f"unsupported schema_version {schema_version!r}; "
+                f"expected {SNAPSHOT_SCHEMA_VERSION}"
+            )
+        if not isinstance(raw.get("generated_at"), str) or not raw["generated_at"]:
+            raise ValueError("snapshot['generated_at'] must be a non-empty string")
+        try:
+            datetime.fromisoformat(raw["generated_at"].replace("Z", "+00:00"))
+        except ValueError:
+            raise ValueError(
+                "snapshot['generated_at'] must be a valid ISO 8601 datetime, "
+                f"got {raw['generated_at']!r}"
+            )
+        if not isinstance(raw.get("source"), str) or not raw["source"]:
+            raise ValueError("snapshot['source'] must be a non-empty string")
+        records = raw.get("signals")
+        if not isinstance(records, list):
+            raise ValueError(
+                f"snapshot['signals'] must be a list, got {type(records).__name__}"
+            )
+        signal_count = raw.get("signal_count")
+        if not isinstance(signal_count, int):
+            raise ValueError("snapshot['signal_count'] must be an integer")
+        if signal_count != len(records):
+            raise ValueError(
+                "snapshot['signal_count'] does not match signals length "
+                f"({signal_count} != {len(records)})"
+            )
+
+    return _parse_snapshot(raw, source_label)
+
+
+def write_snapshot_atomic(snapshot: dict, path: Path = LATEST_SNAPSHOT_PATH) -> SignalSnapshot:
+    """
+    Safely persist the latest generated snapshot.
+
+    The payload is validated before and after JSON serialization.  The target
+    file is replaced only after the temp file is fully written and validated.
+    """
+    parsed = validate_snapshot_payload(snapshot, "generated", require_schema=True)
+    payload = json.dumps(snapshot, indent=2) + "\n"
+
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_name(f".{path.name}.tmp")
+    tmp_path.write_text(payload, encoding="utf-8")
+
+    try:
+        with open(tmp_path, encoding="utf-8") as fh:
+            validate_snapshot_payload(json.load(fh), "generated", require_schema=True)
+        os.replace(tmp_path, path)
+    except Exception:
+        tmp_path.unlink(missing_ok=True)
+        raise
+
+    return parsed
 
 
 # ---------------------------------------------------------------------------
@@ -274,10 +377,45 @@ def get_signals_from_file() -> SignalSnapshot:
         return _error_snapshot(source_label, f"I/O error: {exc}")
 
     try:
-        snapshot = _parse_snapshot(raw, source_label)
+        configured_path = Path(settings.signal_file_path)
+        if not configured_path.is_absolute():
+            configured_path = _REPO_ROOT / configured_path
+        require_schema = configured_path.resolve() == LATEST_SNAPSHOT_PATH
+        snapshot = validate_snapshot_payload(
+            raw,
+            source_label,
+            require_schema=require_schema,
+        )
     except ValueError as exc:
         log.warning("[signal_repository] file: malformed payload — %s", exc)
         return _error_snapshot(source_label, f"Malformed snapshot: {exc}")
+
+    if snapshot.generated_at:
+        try:
+            generated_dt = datetime.fromisoformat(snapshot.generated_at.replace("Z", "+00:00"))
+            age_hours = (datetime.now(timezone.utc) - generated_dt).total_seconds() / 3600
+            if age_hours > _FRESHNESS_FAIL_HOURS:
+                log.warning(
+                    "[signal_repository] file: snapshot is %.1fh old (generated=%s) — "
+                    "exceeds %dh threshold; returning error to prevent stale data",
+                    age_hours, snapshot.generated_at, _FRESHNESS_FAIL_HOURS,
+                )
+                return _error_snapshot(
+                    source_label,
+                    f"Snapshot is {age_hours:.1f}h old (limit: {_FRESHNESS_FAIL_HOURS}h); "
+                    "run generate_signals.py to refresh",
+                )
+            if age_hours > _FRESHNESS_WARN_HOURS:
+                log.warning(
+                    "[signal_repository] file: snapshot is %.1fh old (generated=%s) — "
+                    "consider running generate_signals.py",
+                    age_hours, snapshot.generated_at,
+                )
+        except ValueError:
+            log.warning(
+                "[signal_repository] file: could not parse generated_at=%r for age check",
+                snapshot.generated_at,
+            )
 
     if not snapshot.signals:
         log.info("[signal_repository] file: loaded but contains no valid signals")
