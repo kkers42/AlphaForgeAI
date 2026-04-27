@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -9,6 +10,7 @@ from app.core.config import settings
 from app.repositories.signal_repository import get_signals_from_file
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "templates")
 
@@ -41,7 +43,7 @@ def _signal_engine_health() -> dict:
         "healthy": True,
         "status": "ok",
         "snapshot": {
-            "path": file_path,
+            "path_configured": bool(file_path),
             "present": snapshot_present,
             "status": "not_required" if provider == "mock" else "unknown",
         },
@@ -95,7 +97,9 @@ def _signal_engine_health() -> dict:
 
     engine["healthy"] = settings.allow_mock_fallback
     engine["status"] = "degraded" if settings.allow_mock_fallback else "unhealthy"
-    engine["error"] = snapshot.error_message
+    if snapshot.error_message:
+        logger.warning("signal engine health: %s", snapshot.error_message)
+    engine["error"] = snapshot.status if snapshot.status != "ok" else None
     return engine
 
 
@@ -119,7 +123,7 @@ async def health():
     """
     signal_engine = _signal_engine_health()
     return {
-        "status":      "ok" if signal_engine["healthy"] else "unhealthy",
+        "status":      "ok",
         "service":     settings.app_name,
         "version":     settings.app_version,
         "environment": settings.environment,

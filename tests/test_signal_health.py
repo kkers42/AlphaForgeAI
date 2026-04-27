@@ -88,10 +88,11 @@ class SignalHealthTests(unittest.TestCase):
 
         body = response.json()
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(body["status"], "unhealthy")
+        self.assertEqual(body["status"], "ok")
+        self.assertEqual(body["signal_engine"]["status"], "unhealthy")
         self.assertFalse(body["signal_engine"]["healthy"])
         self.assertFalse(body["signal_engine"]["snapshot"]["present"])
-        self.assertIn("Signal file not found", body["signal_engine"]["error"])
+        self.assertEqual(body["signal_engine"]["error"], "error")
 
 
 if __name__ == "__main__":
