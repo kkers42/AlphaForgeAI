@@ -54,19 +54,23 @@ jobs:
           python -m json.tool data/signals/latest.json > /tmp/latest.json
           echo "[refresh-signals] snapshot generated and JSON validated"
 
-      - name: Smoke generated snapshot
+      - name: Start app
         run: |
-          set -euo pipefail
           python -m uvicorn app.main:app --host 127.0.0.1 --port 8000 > uvicorn.log 2>&1 &
           echo $! > uvicorn.pid
 
           for i in {1..20}; do
             if curl --fail --silent --show-error http://127.0.0.1:8000/health > /tmp/health.json; then
-              break
+              exit 0
             fi
             sleep 1
           done
 
+          cat uvicorn.log
+          exit 1
+
+      - name: Smoke routes
+        run: |
           curl --fail --silent --show-error http://127.0.0.1:8000/health | tee /tmp/health.json
           python -c "import json; data=json.load(open('/tmp/health.json')); assert data['status'] == 'ok'; assert data['signal_engine']['healthy'] is True"
 
