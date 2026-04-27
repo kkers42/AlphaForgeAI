@@ -57,6 +57,7 @@ import logging
 import os
 import subprocess
 from dataclasses import dataclass
+from datetime import datetime, timezone
 from pathlib import Path
 
 from pydantic import ValidationError
@@ -66,9 +67,13 @@ from app.domain.signals import Signal
 
 log = logging.getLogger(__name__)
 
-_SNAPSHOT_PATH = Path(__file__).resolve().parents[2] / "data" / "signals_snapshot.json"
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+_SNAPSHOT_PATH = _REPO_ROOT / "data" / "signals_snapshot.json"
 SNAPSHOT_SCHEMA_VERSION = 1
-LATEST_SNAPSHOT_PATH = Path(__file__).resolve().parents[2] / "data" / "signals" / "latest.json"
+LATEST_SNAPSHOT_PATH = _REPO_ROOT / "data" / "signals" / "latest.json"
+
+_FRESHNESS_WARN_HOURS = 2
+_FRESHNESS_FAIL_HOURS = 24
 
 
 # ---------------------------------------------------------------------------
@@ -128,9 +133,12 @@ def _load_local_snapshot_raw() -> "dict | list":
 
 def _load_file_raw() -> "dict | list":
     """Read the file at settings.signal_file_path and return the raw parsed JSON."""
-    path = settings.signal_file_path
-    if not path:
+    path_str = settings.signal_file_path
+    if not path_str:
         raise ValueError("SIGNAL_FILE_PATH is not configured")
+    path = Path(path_str)
+    if not path.is_absolute():
+        path = _REPO_ROOT / path
     with open(path, encoding="utf-8") as fh:
         return json.load(fh)
 
@@ -281,6 +289,13 @@ def validate_snapshot_payload(
             )
         if not isinstance(raw.get("generated_at"), str) or not raw["generated_at"]:
             raise ValueError("snapshot['generated_at'] must be a non-empty string")
+        try:
+            datetime.fromisoformat(raw["generated_at"].replace("Z", "+00:00"))
+        except ValueError:
+            raise ValueError(
+                "snapshot['generated_at'] must be a valid ISO 8601 datetime, "
+                f"got {raw['generated_at']!r}"
+            )
         if not isinstance(raw.get("source"), str) or not raw["source"]:
             raise ValueError("snapshot['source'] must be a non-empty string")
         records = raw.get("signals")
@@ -363,8 +378,9 @@ def get_signals_from_file() -> SignalSnapshot:
 
     try:
         configured_path = Path(settings.signal_file_path)
-        latest_path = LATEST_SNAPSHOT_PATH
-        require_schema = configured_path.name == latest_path.name
+        if not configured_path.is_absolute():
+            configured_path = _REPO_ROOT / configured_path
+        require_schema = configured_path.resolve() == LATEST_SNAPSHOT_PATH
         snapshot = validate_snapshot_payload(
             raw,
             source_label,
@@ -373,6 +389,33 @@ def get_signals_from_file() -> SignalSnapshot:
     except ValueError as exc:
         log.warning("[signal_repository] file: malformed payload — %s", exc)
         return _error_snapshot(source_label, f"Malformed snapshot: {exc}")
+
+    if snapshot.generated_at:
+        try:
+            generated_dt = datetime.fromisoformat(snapshot.generated_at.replace("Z", "+00:00"))
+            age_hours = (datetime.now(timezone.utc) - generated_dt).total_seconds() / 3600
+            if age_hours > _FRESHNESS_FAIL_HOURS:
+                log.warning(
+                    "[signal_repository] file: snapshot is %.1fh old (generated=%s) — "
+                    "exceeds %dh threshold; returning error to prevent stale data",
+                    age_hours, snapshot.generated_at, _FRESHNESS_FAIL_HOURS,
+                )
+                return _error_snapshot(
+                    source_label,
+                    f"Snapshot is {age_hours:.1f}h old (limit: {_FRESHNESS_FAIL_HOURS}h); "
+                    "run generate_signals.py to refresh",
+                )
+            if age_hours > _FRESHNESS_WARN_HOURS:
+                log.warning(
+                    "[signal_repository] file: snapshot is %.1fh old (generated=%s) — "
+                    "consider running generate_signals.py",
+                    age_hours, snapshot.generated_at,
+                )
+        except ValueError:
+            log.warning(
+                "[signal_repository] file: could not parse generated_at=%r for age check",
+                snapshot.generated_at,
+            )
 
     if not snapshot.signals:
         log.info("[signal_repository] file: loaded but contains no valid signals")

@@ -25,16 +25,32 @@ The rest of this file — fallback logic, return type, mock data — is unchange
 
 import logging
 from dataclasses import replace
+from pathlib import Path
 
 from app.core.config import settings
 from app.domain.signals import Direction, Signal, Timeframe
-from app.repositories.signal_repository import SignalSnapshot
 from app.repositories.signal_repository import (
+    LATEST_SNAPSHOT_PATH,
+    SignalSnapshot,
     get_signals as _repo_get_signals,
     get_signals_from_file as _repo_get_signals_from_file,
 )
 
 log = logging.getLogger(__name__)
+
+# Startup warning: emit once at import time if file provider is active but snapshot missing
+if settings.signal_provider == "file":
+    _startup_path: Path | None = None
+    if settings.signal_file_path:
+        _p = Path(settings.signal_file_path)
+        _startup_path = _p if _p.is_absolute() else LATEST_SNAPSHOT_PATH.parents[2] / _p
+    if _startup_path is None or not _startup_path.exists():
+        log.warning(
+            "SIGNAL_PROVIDER=file but snapshot not found at %s — "
+            "run scripts/generate_signals.py before first request, "
+            "or set SIGNAL_PROVIDER=mock for development",
+            _startup_path or settings.signal_file_path or "(path not set)",
+        )
 
 
 def get_signals() -> SignalSnapshot:
