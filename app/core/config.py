@@ -22,6 +22,12 @@ class Settings:
     signal_freshness_warn_hours: int = field(
         default_factory=lambda: int(os.getenv("SIGNAL_FRESHNESS_WARN_HOURS", "24"))
     )
+    signal_stale_after_hours: int = field(
+        default_factory=lambda: int(os.getenv("SIGNAL_STALE_AFTER_HOURS", "48"))
+    )
+    signal_stale_action: str = field(
+        default_factory=lambda: os.getenv("SIGNAL_STALE_ACTION", "mark").strip().lower()
+    )
 
     # ── Sentinel SSH connection ──────────────────────────────────────────────
     # Required when signal_source == "sentinel_ssh".
