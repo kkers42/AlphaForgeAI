@@ -7,6 +7,10 @@ from fastapi.templating import Jinja2Templates
 
 from app.core.config import settings
 from app.repositories.signal_repository import get_signals_from_file
+from app.services.signal_staleness import (
+    evaluate_signal_staleness,
+    parse_utc_timestamp,
+)
 
 router = APIRouter()
 
@@ -14,14 +18,7 @@ templates = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "tem
 
 
 def _parse_utc_timestamp(value: str | None) -> datetime | None:
-    if not value:
-        return None
-    try:
-        return datetime.fromisoformat(value.replace("Z", "+00:00")).astimezone(
-            timezone.utc
-        )
-    except ValueError:
-        return None
+    return parse_utc_timestamp(value)
 
 
 def _signal_engine_health() -> dict:
@@ -53,6 +50,12 @@ def _signal_engine_health() -> dict:
             "age_seconds": None,
             "warn_after_hours": settings.signal_freshness_warn_hours,
         },
+        "staleness": {
+            "is_stale": False,
+            "action": settings.signal_stale_action,
+            "age_seconds": None,
+            "stale_after_hours": settings.signal_stale_after_hours,
+        },
         "refresh_job": {
             "configured": False,
             "status": "not_configured",
@@ -77,6 +80,13 @@ def _signal_engine_health() -> dict:
         else len(snapshot.signals)
     )
     engine["schema_version"] = snapshot.schema_version
+    staleness = evaluate_signal_staleness(snapshot.generated_at)
+    engine["staleness"] = {
+        "is_stale": staleness.is_stale,
+        "action": staleness.action,
+        "age_seconds": staleness.age_seconds,
+        "stale_after_hours": staleness.stale_after_hours,
+    }
 
     generated_at = _parse_utc_timestamp(snapshot.generated_at)
     if generated_at:
