@@ -28,7 +28,7 @@ def evaluate_signal_staleness(generated_at: str | None) -> SignalStaleness:
     age_seconds: int | None = None
     is_stale = False
 
-    if generated:
+    if generated and settings.signal_stale_after_hours > 0:
         age_seconds = max(
             int((datetime.now(timezone.utc) - generated).total_seconds()),
             0,

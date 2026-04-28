@@ -149,5 +149,22 @@ class SignalHealthTests(unittest.TestCase):
         self.assertNotIn("Test signal.", response.text)
 
 
+    def test_signals_never_stale_when_stale_after_hours_is_zero(self) -> None:
+        with tempfile.TemporaryDirectory() as tmp:
+            old = _snapshot()
+            old["generated_at"] = "2020-01-01T00:00:00Z"
+            path = Path(tmp) / "latest.json"
+            path.write_text(json.dumps(old), encoding="utf-8")
+            settings.signal_provider = "file"
+            settings.signal_file_path = str(path)
+            settings.signal_stale_after_hours = 0
+            settings.signal_stale_action = "filter"
+
+            response = self.client.get("/signals")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertIn("ETH", response.text)
+
+
 if __name__ == "__main__":
     unittest.main()
