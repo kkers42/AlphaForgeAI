@@ -20,7 +20,8 @@
 {# ── Source meta bar ──────────────────────────────────────────────────────── #}
 <div class="source-meta">
     <span class="source-status-dot
-        {%- if snapshot_status == 'ok' %} src-ok
+        {%- if signals_stale %} src-warn
+        {%- elif snapshot_status == 'ok' %} src-ok
         {%- elif snapshot_status == 'error' %} src-error
         {%- else %} src-warn
         {%- endif %}"></span>
