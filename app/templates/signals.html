@@ -76,7 +76,7 @@
     </div>
 {% elif signals_stale %}
     <div class="snapshot-notice snapshot-notice-warn">
-        &#9888; Signals are older than {{ stale_after_hours }} hours.
+        &#9888; Signals are older than {{ stale_after_hours }} hour{{ 's' if stale_after_hours != 1 else '' }}.
         {% if stale_action == 'filter' %}
             Stale signals are hidden until the next successful refresh.
         {% else %}
