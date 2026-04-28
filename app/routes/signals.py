@@ -16,9 +16,9 @@ templates = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "tem
 async def signal_feed(request: Request):
     snapshot = get_signals()
     staleness = evaluate_signal_staleness(snapshot.generated_at)
-    signals = []
-    if not (staleness.is_stale and staleness.action == "filter"):
-        signals = snapshot.signals
+    signals = snapshot.signals
+    if snapshot.status == "ok" and staleness.is_stale and staleness.action == "filter":
+        signals = []
 
     # Format generated_at for display ("2026-04-22T12:00:00Z" → "2026-04-22 12:00 UTC")
     generated_at_display: str | None = None
