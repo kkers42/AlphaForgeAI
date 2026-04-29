@@ -4,12 +4,22 @@ from fastapi.templating import Jinja2Templates
 from pathlib import Path
 
 from app.core.config import settings
+from app.services.confidence_calibration import (
+    confidence_css_class,
+    confidence_label,
+    confidence_percent,
+    normalize_percent,
+)
 from app.services.signal_service import get_signals
 from app.services.signal_staleness import evaluate_signal_staleness
 
 router = APIRouter()
 
 templates = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "templates")
+templates.env.filters["confidence_percent"] = confidence_percent
+templates.env.filters["confidence_label"] = confidence_label
+templates.env.filters["confidence_css_class"] = confidence_css_class
+templates.env.filters["importance_percent"] = normalize_percent
 
 
 @router.get("/signals", response_class=HTMLResponse)
