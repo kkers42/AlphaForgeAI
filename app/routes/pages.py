@@ -114,8 +114,7 @@ def _signal_engine_health() -> dict:
 
 @router.get("/", response_class=HTMLResponse)
 async def homepage(request: Request):
-    return templates.TemplateResponse("index.html", {
-        "request":      request,
+    return templates.TemplateResponse(request, "index.html", {
         "active_page":  "home",
         "app_version":  settings.app_version,
         "environment":  settings.environment,
