@@ -12,8 +12,7 @@ templates = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "tem
 
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard(request: Request):
-    return templates.TemplateResponse("dashboard.html", {
-        "request":      request,
+    return templates.TemplateResponse(request, "dashboard.html", {
         "active_page":  "dashboard",
         "app_version":  settings.app_version,
         "environment":  settings.environment,
