@@ -82,7 +82,7 @@ class TestGetSignalsFileProvider:
         mock_cfg.allow_mock_fallback = allow_fallback
         return (
             patch("app.services.signal_service.settings", mock_cfg),
-            patch("app.services.signal_service._repo_get_signals_from_file", return_value=snapshot),
+            patch("app.providers.file_provider.get_signals", return_value=snapshot),
         )
 
     def test_ok_snapshot_returned_as_is(self):
