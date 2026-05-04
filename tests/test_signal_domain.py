@@ -61,7 +61,7 @@ class TestSignalValidation:
 
     def test_invalid_timeframe_rejected(self):
         with pytest.raises(ValidationError):
-            Signal(**{**self._valid, "timeframe": "5m"})
+            Signal(**{**self._valid, "timeframe": "30m"})
 
     def test_top_features_optional(self):
         s = Signal(**self._valid)
@@ -87,7 +87,7 @@ class TestSignalValidation:
         s = Signal(**{**self._valid, "direction": direction})
         assert s.direction == direction
 
-    @pytest.mark.parametrize("timeframe", ["15m", "1h", "4h"])
+    @pytest.mark.parametrize("timeframe", ["5m", "15m", "1h", "4h"])
     def test_all_timeframes_accepted(self, timeframe):
         s = Signal(**{**self._valid, "timeframe": timeframe})
         assert s.timeframe == timeframe

@@ -55,19 +55,28 @@ def get_signals() -> SignalSnapshot:
                 snapshot.status,
                 settings.environment,
             )
-            return replace(
+            snapshot = replace(
                 snapshot,
                 signals=get_mock_signals(),
                 source="mock_fallback",
                 used_mock_fallback=True,
                 status="fallback",
             )
-        log.info(
-            "event=empty_feed_returned provider=%s status=%s environment=%s",
-            provider,
-            snapshot.status,
-            settings.environment,
-        )
+        else:
+            log.info(
+                "event=empty_feed_returned provider=%s status=%s environment=%s",
+                provider,
+                snapshot.status,
+                settings.environment,
+            )
+            return snapshot
+
+    if settings.signal_confluence:
+        from app.services.confluence_engine import evaluate_confluence, filter_confluent
+        signals = evaluate_confluence(snapshot.signals)
+        if settings.signal_confluence_filter:
+            signals = filter_confluent(signals)
+        snapshot = replace(snapshot, signals=signals)
 
     return snapshot
 

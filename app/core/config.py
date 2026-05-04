@@ -45,6 +45,18 @@ class Settings:
         ).strip().lower() in ("1", "true", "yes")
     )
 
+    # ── Confluence engine ────────────────────────────────────────────────────
+    # SIGNAL_CONFLUENCE=true  → run the multi-TF confluence engine after load
+    # SIGNAL_CONFLUENCE_FILTER=true → only return confluent signals (full/partial)
+    signal_confluence: bool = field(
+        default_factory=lambda: os.getenv("SIGNAL_CONFLUENCE", "false").strip().lower()
+        in ("1", "true", "yes")
+    )
+    signal_confluence_filter: bool = field(
+        default_factory=lambda: os.getenv("SIGNAL_CONFLUENCE_FILTER", "false").strip().lower()
+        in ("1", "true", "yes")
+    )
+
     # ── Derived properties ───────────────────────────────────────────────────
 
     @property

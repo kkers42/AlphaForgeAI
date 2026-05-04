@@ -51,6 +51,7 @@ class TestGetSignalsMockProvider:
         mock_cfg.signal_provider = provider
         mock_cfg.environment = environment
         mock_cfg.allow_mock_fallback = allow_fallback
+        mock_cfg.signal_confluence = False
         return patch("app.services.signal_service.settings", mock_cfg)
 
     def test_mock_provider_returns_signals(self):
@@ -80,6 +81,7 @@ class TestGetSignalsFileProvider:
         mock_cfg.signal_provider = "file"
         mock_cfg.environment = "development"
         mock_cfg.allow_mock_fallback = allow_fallback
+        mock_cfg.signal_confluence = False
         return (
             patch("app.services.signal_service.settings", mock_cfg),
             patch("app.providers.file_provider.get_signals", return_value=snapshot),
