@@ -21,9 +21,16 @@ Usage
 import argparse
 import hashlib
 import json
+import logging
 import random
 from datetime import datetime, timezone
 from pathlib import Path
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+log = logging.getLogger("generate_signals")
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
@@ -269,18 +276,32 @@ def main() -> None:
     )
     args = parser.parse_args()
 
+    log.info(
+        "event=generation_start asset_count=%d dry_run=%s",
+        args.assets,
+        args.dry_run,
+    )
+
     snapshot = generate(asset_count=args.assets)
     payload  = json.dumps(snapshot, indent=2)
 
     if args.dry_run:
+        log.info(
+            "event=generation_complete signal_count=%d generated_at=%s dry_run=true",
+            len(snapshot["signals"]),
+            snapshot["generated_at"],
+        )
         print(payload)
         return
 
     SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
     SNAPSHOT_PATH.write_text(payload + "\n", encoding="utf-8")
-    print(
-        f"[generate_signals] wrote {len(snapshot['signals'])} signals"
-        f" to {SNAPSHOT_PATH}  (generated_at={snapshot['generated_at']})"
+    log.info(
+        "event=snapshot_written signal_count=%d path=%s generated_at=%s model_version=%s",
+        len(snapshot["signals"]),
+        SNAPSHOT_PATH,
+        snapshot["generated_at"],
+        snapshot["model_version"],
     )
 
 

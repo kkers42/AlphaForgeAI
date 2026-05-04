@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
@@ -6,6 +8,7 @@ from pathlib import Path
 from app.core.config import settings
 
 router = APIRouter()
+log = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "templates")
 
@@ -28,6 +31,12 @@ async def health():
     Returns service identity, version, environment, and a lightweight
     summary of the signal source configuration.
     """
+    log.info(
+        "event=health_check version=%s environment=%s provider=%s",
+        settings.app_version,
+        settings.environment,
+        settings.signal_provider,
+    )
     return {
         "status":      "ok",
         "service":     settings.app_name,
@@ -51,6 +60,11 @@ async def health_signals():
     Useful for diagnosing which source is active, whether Sentinel is
     configured, and what timeout is in use.  Does not perform a live probe.
     """
+    log.info(
+        "event=health_signals_check provider=%s sentinel_configured=%s",
+        settings.signal_provider,
+        settings.sentinel_configured,
+    )
     sentinel_info: dict = {
         "configured": settings.sentinel_configured,
     }
