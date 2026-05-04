@@ -4,17 +4,31 @@ from fastapi.templating import Jinja2Templates
 from pathlib import Path
 
 from app.core.config import settings
+from app.services.confidence_calibration import (
+    confidence_css_class,
+    confidence_label,
+    confidence_percent,
+    normalize_percent,
+)
 from app.services.signal_service import get_signals
+from app.services.signal_staleness import evaluate_signal_staleness
 
 router = APIRouter()
 
 templates = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "templates")
+templates.env.filters["confidence_percent"] = confidence_percent
+templates.env.filters["confidence_label"] = confidence_label
+templates.env.filters["confidence_css_class"] = confidence_css_class
+templates.env.filters["importance_percent"] = normalize_percent
 
 
 @router.get("/signals", response_class=HTMLResponse)
 async def signal_feed(request: Request):
     snapshot = get_signals()
-    signals  = snapshot.signals
+    staleness = evaluate_signal_staleness(snapshot.generated_at)
+    signals = []
+    if not (staleness.is_stale and staleness.action == "filter"):
+        signals = snapshot.signals
 
     # Format generated_at for display ("2026-04-22T12:00:00Z" → "2026-04-22 12:00 UTC")
     generated_at_display: str | None = None
@@ -47,6 +61,9 @@ async def signal_feed(request: Request):
         "generated_at":       generated_at_display,
         "model_version":      snapshot.model_version,
         "used_mock_fallback": snapshot.used_mock_fallback,
+        "signals_stale":      staleness.is_stale,
+        "stale_action":       staleness.action,
+        "stale_after_hours":  staleness.stale_after_hours,
         # observability
         "snapshot_status":    snapshot.status,
         "error_message":      snapshot.error_message,
