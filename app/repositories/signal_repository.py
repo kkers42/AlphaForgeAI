@@ -362,13 +362,10 @@ def get_signals_from_file() -> SignalSnapshot:
         return _error_snapshot(source_label, f"I/O error: {exc}")
 
     try:
-        configured_path = Path(settings.signal_file_path)
-        latest_path = LATEST_SNAPSHOT_PATH
-        require_schema = configured_path.name == latest_path.name
         snapshot = validate_snapshot_payload(
             raw,
             source_label,
-            require_schema=require_schema,
+            require_schema=settings.signal_provider == "file",
         )
     except ValueError as exc:
         log.warning("[signal_repository] file: malformed payload — %s", exc)

@@ -6,6 +6,7 @@ from pathlib import Path
 from app.core.config import settings
 from app.repositories.signal_repository import (
     SNAPSHOT_SCHEMA_VERSION,
+    get_signals_from_file,
     validate_snapshot_payload,
     write_snapshot_atomic,
 )
@@ -75,6 +76,37 @@ class SnapshotPersistenceTests(unittest.TestCase):
             persisted = json.loads(path.read_text(encoding="utf-8"))
             self.assertEqual(persisted["signal_count"], 1)
             self.assertEqual(persisted["signals"][0]["symbol"], "ETH")
+
+    def test_custom_path_schema_required_with_file_provider(self) -> None:
+        """Schema validation fires for any path (not just latest.json) when signal_provider=file."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "my_signals.json"
+            schema_less = {
+                "generated_at": "2026-04-26T20:00:00Z",
+                "source": "generated",
+                "signals": [],
+            }
+            path.write_text(json.dumps(schema_less), encoding="utf-8")
+            settings.signal_provider = "file"
+            settings.signal_file_path = str(path)
+
+            snapshot = get_signals_from_file()
+
+            self.assertEqual(snapshot.status, "error")
+            self.assertIn("schema_version", snapshot.error_message or "")
+
+    def test_custom_path_valid_schema_loads_with_file_provider(self) -> None:
+        """A valid schema snapshot loads successfully regardless of the file path name."""
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "my_signals.json"
+            path.write_text(json.dumps(_valid_snapshot()), encoding="utf-8")
+            settings.signal_provider = "file"
+            settings.signal_file_path = str(path)
+
+            snapshot = get_signals_from_file()
+
+            self.assertEqual(snapshot.status, "ok")
+            self.assertEqual(snapshot.signal_count, 1)
 
     def test_missing_file_provider_uses_mock_fallback_in_development(self) -> None:
         with tempfile.TemporaryDirectory() as tmp:
