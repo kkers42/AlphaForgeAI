@@ -21,9 +21,16 @@ Usage
 import argparse
 import hashlib
 import json
+import logging
 import random
 from datetime import datetime, timezone
 from pathlib import Path
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)s %(name)s %(message)s",
+)
+log = logging.getLogger("generate_signals")
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
@@ -38,7 +45,9 @@ ASSETS = [
     "SHIB", "PEPE", "WIF", "BONK", "LTC",
 ]
 
-TIMEFRAMES = ["15m", "1h", "4h"]
+TIMEFRAMES = ["5m", "15m", "1h", "4h"]
+# Timeframes included in multi-TF confluence evaluation
+CONFLUENCE_TIMEFRAMES = ["5m", "15m", "1h"]
 
 # ── Feature pools by direction ─────────────────────────────────────────────────
 
@@ -160,10 +169,14 @@ def _seed_rng(symbol: str, bucket: int) -> random.Random:
     return random.Random(seed)
 
 
-def _build_signal(symbol: str, now: datetime) -> dict:
+def _build_signal(symbol: str, now: datetime, timeframe: str | None = None) -> dict:
     """Generate one synthetic signal, stable within the current UTC hour."""
     bucket = _hour_bucket(now)
-    rng    = _seed_rng(symbol, bucket)
+    # Include timeframe in seed so per-TF signals are independently seeded
+    seed_key = f"{symbol}:{bucket}:{timeframe or ''}"
+    rng = random.Random(
+        int(hashlib.sha256(seed_key.encode()).hexdigest(), 16) % (2 ** 32)
+    )
 
     # Direction: slight LONG bias reflects typical bull-market training data
     direction = rng.choices(
@@ -171,7 +184,8 @@ def _build_signal(symbol: str, now: datetime) -> dict:
         weights=[0.45, 0.30, 0.25],
     )[0]
 
-    timeframe = rng.choice(TIMEFRAMES)
+    if timeframe is None:
+        timeframe = rng.choice(TIMEFRAMES)
     regime    = rng.choice(_REGIMES[direction])
 
     # Confidence bands by direction
@@ -222,24 +236,34 @@ def _build_signal(symbol: str, now: datetime) -> dict:
 
 # ── Public API ─────────────────────────────────────────────────────────────────
 
-def generate(asset_count: int = 12) -> dict:
+def generate(asset_count: int = 12, multi_timeframe: bool = False) -> dict:
     """
     Generate a full v2 snapshot envelope.
 
-    Returns a dict ready to be JSON-serialised.  The asset subset and all
-    signal values are stable within the current UTC hour; running the script
-    twice in the same hour produces identical output.
+    When multi_timeframe=True each asset gets one signal per confluence
+    timeframe (5m, 15m, 1h), enabling the confluence engine to evaluate
+    cross-TF agreement. When False (default) one signal per asset is
+    generated with a randomly chosen timeframe.
+
+    Returns a dict ready to be JSON-serialised. Asset selection and all
+    signal values are stable within the current UTC hour.
     """
     now    = datetime.now(timezone.utc)
     bucket = _hour_bucket(now)
 
-    # Stable asset selection for this hour window
     sel_rng = random.Random(
         int(hashlib.sha256(f"select:{bucket}".encode()).hexdigest(), 16) % (2 ** 32)
     )
     assets = sorted(sel_rng.sample(ASSETS, min(asset_count, len(ASSETS))))
 
-    signals = [_build_signal(symbol, now) for symbol in assets]
+    if multi_timeframe:
+        signals = [
+            _build_signal(symbol, now, timeframe=tf)
+            for symbol in assets
+            for tf in CONFLUENCE_TIMEFRAMES
+        ]
+    else:
+        signals = [_build_signal(symbol, now) for symbol in assets]
 
     return {
         "generated_at":  now.strftime("%Y-%m-%dT%H:%M:%SZ"),
@@ -267,20 +291,40 @@ def main() -> None:
         metavar="N",
         help="Number of assets to include per run (default: 12, max: %(default)s)",
     )
+    parser.add_argument(
+        "--multi-timeframe",
+        action="store_true",
+        help="Generate one signal per asset per confluence timeframe (5m, 15m, 1h)",
+    )
     args = parser.parse_args()
 
-    snapshot = generate(asset_count=args.assets)
+    log.info(
+        "event=generation_start asset_count=%d dry_run=%s multi_timeframe=%s",
+        args.assets,
+        args.dry_run,
+        args.multi_timeframe,
+    )
+
+    snapshot = generate(asset_count=args.assets, multi_timeframe=args.multi_timeframe)
     payload  = json.dumps(snapshot, indent=2)
 
     if args.dry_run:
+        log.info(
+            "event=generation_complete signal_count=%d generated_at=%s dry_run=true",
+            len(snapshot["signals"]),
+            snapshot["generated_at"],
+        )
         print(payload)
         return
 
     SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
     SNAPSHOT_PATH.write_text(payload + "\n", encoding="utf-8")
-    print(
-        f"[generate_signals] wrote {len(snapshot['signals'])} signals"
-        f" to {SNAPSHOT_PATH}  (generated_at={snapshot['generated_at']})"
+    log.info(
+        "event=snapshot_written signal_count=%d path=%s generated_at=%s model_version=%s",
+        len(snapshot["signals"]),
+        SNAPSHOT_PATH,
+        snapshot["generated_at"],
+        snapshot["model_version"],
     )
 
 
