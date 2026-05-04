@@ -92,11 +92,14 @@ def _signal_engine_health() -> dict:
     if generated_at:
         age_seconds = int((datetime.now(timezone.utc) - generated_at).total_seconds())
         engine["freshness"]["age_seconds"] = max(age_seconds, 0)
-        engine["freshness"]["status"] = (
-            "stale"
-            if age_seconds > settings.signal_freshness_warn_hours * 3600
-            else "fresh"
-        )
+        warn_seconds = settings.signal_freshness_warn_hours * 3600
+        stale_seconds = settings.signal_stale_after_hours * 3600
+        if age_seconds >= stale_seconds:
+            engine["freshness"]["status"] = "stale"
+        elif age_seconds >= warn_seconds:
+            engine["freshness"]["status"] = "warn"
+        else:
+            engine["freshness"]["status"] = "fresh"
     elif snapshot_present:
         engine["freshness"]["status"] = "unknown"
 
