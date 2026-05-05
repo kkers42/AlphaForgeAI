@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -13,6 +14,7 @@ from app.services.signal_staleness import (
 )
 
 router = APIRouter()
+log = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "templates")
 
@@ -130,6 +132,12 @@ async def health():
     summary of the signal source configuration.
     """
     signal_engine = _signal_engine_health()
+    log.info(
+        "event=health_check version=%s environment=%s provider=%s",
+        settings.app_version,
+        settings.environment,
+        settings.signal_provider,
+    )
     return {
         "status":      "ok" if signal_engine["healthy"] else "unhealthy",
         "service":     settings.app_name,
@@ -154,6 +162,11 @@ async def health_signals():
     Useful for diagnosing which source is active, whether Sentinel is
     configured, and what timeout is in use.  Does not perform a live probe.
     """
+    log.info(
+        "event=health_signals_check provider=%s sentinel_configured=%s",
+        settings.signal_provider,
+        settings.sentinel_configured,
+    )
     sentinel_info: dict = {
         "configured": settings.sentinel_configured,
     }

@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -14,6 +16,7 @@ from app.services.signal_service import get_signals
 from app.services.signal_staleness import evaluate_signal_staleness
 
 router = APIRouter()
+log = logging.getLogger(__name__)
 
 templates = Jinja2Templates(directory=Path(__file__).resolve().parents[1] / "templates")
 templates.env.filters["confidence_percent"] = confidence_percent
@@ -29,6 +32,16 @@ async def signal_feed(request: Request):
     signals = []
     if not (staleness.is_stale and staleness.action == "filter"):
         signals = snapshot.signals
+    log.info(
+        "event=signal_feed_render signal_count=%d source=%s status=%s "
+        "used_mock_fallback=%s generated_at=%s model_version=%s",
+        len(signals),
+        snapshot.source,
+        snapshot.status,
+        snapshot.used_mock_fallback,
+        snapshot.generated_at or "unknown",
+        snapshot.model_version or "unknown",
+    )
 
     # Format generated_at for display ("2026-04-22T12:00:00Z" → "2026-04-22 12:00 UTC")
     generated_at_display: str | None = None
