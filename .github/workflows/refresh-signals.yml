@@ -12,6 +12,7 @@ on:
 
 permissions:
   contents: write
+  id-token: write
 
 concurrency:
   group: refresh-signals-${{ github.ref }}
@@ -86,10 +87,12 @@ jobs:
           cat uvicorn.log || true
 
       - name: Commit refreshed snapshot
+        id: commit
         run: |
           set -euo pipefail
           if git diff --quiet -- data/signals/latest.json; then
             echo "[refresh-signals] no snapshot changes to commit"
+            echo "changed=false" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -99,3 +102,30 @@ jobs:
           git commit -m "chore: refresh generated signals snapshot"
           git push origin HEAD
           echo "[refresh-signals] committed refreshed snapshot"
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Authenticate to Google Cloud
+        if: steps.commit.outputs.changed == 'true'
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        if: steps.commit.outputs.changed == 'true'
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build and deploy fresh image to Cloud Run
+        if: steps.commit.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          IMAGE="us-central1-docker.pkg.dev/alphaforgeai/cloud-run-source-deploy/alphaforgeai:latest"
+          echo "[refresh-signals] building image..."
+          gcloud builds submit --tag "$IMAGE" --project alphaforgeai .
+          echo "[refresh-signals] deploying to Cloud Run..."
+          gcloud run deploy alphaforgeai \
+            --image "$IMAGE" \
+            --project alphaforgeai \
+            --region us-central1 \
+            --platform managed
+          echo "[refresh-signals] deployed fresh signals to production"
