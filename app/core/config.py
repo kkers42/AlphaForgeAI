@@ -1,5 +1,17 @@
+import logging
 import os
 from dataclasses import dataclass, field
+
+_log = logging.getLogger(__name__)
+
+
+def _int_env(var: str, default: int) -> int:
+    raw = os.getenv(var, str(default))
+    try:
+        return int(raw)
+    except ValueError:
+        _log.warning("Invalid value %r for %s; using default %d", raw, var, default)
+        return default
 
 
 @dataclass
@@ -10,12 +22,24 @@ class Settings:
     signal_source: str = field(default_factory=lambda: os.getenv("SIGNAL_SOURCE", "local_snapshot"))
 
     # ── Signal provider ──────────────────────────────────────────────────────
-    # High-level provider selection.  "mock" serves hardcoded signals directly
-    # (no file I/O).  "file" reads from signal_file_path.  The legacy
+    # High-level provider selection.  "file" reads the persisted latest
+    # snapshot by default.  "mock" serves hardcoded signals directly
+    # (no file I/O).  The legacy
     # signal_source values (local_snapshot / sentinel_ssh) are used when
     # signal_provider is not set to mock or file.
-    signal_provider:  str = field(default_factory=lambda: os.getenv("SIGNAL_PROVIDER", "mock"))
-    signal_file_path: str = field(default_factory=lambda: os.getenv("SIGNAL_FILE_PATH", ""))
+    signal_provider:  str = field(default_factory=lambda: os.getenv("SIGNAL_PROVIDER", "file"))
+    signal_file_path: str = field(
+        default_factory=lambda: os.getenv("SIGNAL_FILE_PATH", "data/signals/latest.json")
+    )
+    signal_freshness_warn_hours: int = field(
+        default_factory=lambda: _int_env("SIGNAL_FRESHNESS_WARN_HOURS", 24)
+    )
+    signal_stale_after_hours: int = field(
+        default_factory=lambda: _int_env("SIGNAL_STALE_AFTER_HOURS", 48)
+    )
+    signal_stale_action: str = field(
+        default_factory=lambda: os.getenv("SIGNAL_STALE_ACTION", "mark").strip().lower()
+    )
 
     # ── Sentinel SSH connection ──────────────────────────────────────────────
     # Required when signal_source == "sentinel_ssh".
@@ -33,7 +57,7 @@ class Settings:
     # subprocess.run timeout (seconds).  ConnectTimeout is set to the same
     # value so SSH itself honours it independently of Python's timeout.
     sentinel_ssh_timeout_seconds: int = field(
-        default_factory=lambda: int(os.getenv("SENTINEL_SSH_TIMEOUT", "18"))
+        default_factory=lambda: _int_env("SENTINEL_SSH_TIMEOUT", 18)
     )
 
     # StrictHostKeyChecking: False (default) skips known-hosts verification,

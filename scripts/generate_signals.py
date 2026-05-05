@@ -2,8 +2,8 @@
 """
 Signal generation pipeline — synthetic model v1.
 
-Writes data/signals_snapshot.json in the v2 envelope format consumed by
-the AlphaForgeAI file provider (SIGNAL_PROVIDER=file).
+Writes data/signals/latest.json in the v1 persisted snapshot schema consumed
+by the AlphaForgeAI file provider (SIGNAL_PROVIDER=file).
 
 Signals are seeded by (symbol + UTC-hour) so the output is deterministic
 within a given hour window and rotates automatically on every subsequent run.
@@ -24,11 +24,16 @@ import json
 import random
 from datetime import datetime, timezone
 from pathlib import Path
+import sys
 
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
 REPO_ROOT     = Path(__file__).resolve().parents[1]
-SNAPSHOT_PATH = REPO_ROOT / "data" / "signals_snapshot.json"
+SNAPSHOT_PATH = REPO_ROOT / "data" / "signals" / "latest.json"
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from app.repositories.signal_repository import SNAPSHOT_SCHEMA_VERSION, write_snapshot_atomic
 
 # ── Asset universe ─────────────────────────────────────────────────────────────
 
@@ -224,7 +229,7 @@ def _build_signal(symbol: str, now: datetime) -> dict:
 
 def generate(asset_count: int = 12) -> dict:
     """
-    Generate a full v2 snapshot envelope.
+    Generate a persisted snapshot envelope.
 
     Returns a dict ready to be JSON-serialised.  The asset subset and all
     signal values are stable within the current UTC hour; running the script
@@ -242,9 +247,11 @@ def generate(asset_count: int = 12) -> dict:
     signals = [_build_signal(symbol, now) for symbol in assets]
 
     return {
+        "schema_version": SNAPSHOT_SCHEMA_VERSION,
         "generated_at":  now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "model_version": "synthetic-v1",
         "source":        "generated",
+        "signal_count":  len(signals),
         "signals":       signals,
     }
 
@@ -253,7 +260,7 @@ def generate(asset_count: int = 12) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate signals_snapshot.json for AlphaForgeAI"
+        description="Generate the persisted latest signal snapshot for AlphaForgeAI"
     )
     parser.add_argument(
         "--dry-run",
@@ -276,11 +283,10 @@ def main() -> None:
         print(payload)
         return
 
-    SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SNAPSHOT_PATH.write_text(payload + "\n", encoding="utf-8")
+    parsed = write_snapshot_atomic(snapshot, SNAPSHOT_PATH)
     print(
-        f"[generate_signals] wrote {len(snapshot['signals'])} signals"
-        f" to {SNAPSHOT_PATH}  (generated_at={snapshot['generated_at']})"
+        f"[generate_signals] wrote {parsed.signal_count} signals"
+        f" to {SNAPSHOT_PATH}  (generated_at={parsed.generated_at})"
     )
 
 
