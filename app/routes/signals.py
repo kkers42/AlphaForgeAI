@@ -45,8 +45,7 @@ async def signal_feed(request: Request):
         if generated_at_display and generated_at_display.endswith(":00 UTC"):
             generated_at_display = generated_at_display[:-7] + " UTC"
 
-    return templates.TemplateResponse("signals.html", {
-        "request":            request,
+    return templates.TemplateResponse(request, "signals.html", {
         "active_page":        "signals",
         "app_version":        settings.app_version,
         "environment":        settings.environment,
