@@ -41,7 +41,8 @@
     {% endif %}
     <span class="source-meta-sep">&middot;</span>
     <span class="source-meta-item source-meta-status">
-        {% if snapshot_status == 'ok' %}live
+        {% if signals_stale %}stale
+        {% elif snapshot_status == 'ok' %}live
         {% elif snapshot_status == 'empty' %}empty
         {% elif snapshot_status == 'error' %}source error
         {% elif snapshot_status == 'fallback' %}mock fallback
@@ -73,6 +74,15 @@
     <div class="snapshot-notice snapshot-notice-warn">
         &#9888; No signals available. The snapshot is empty or the source returned no records.
     </div>
+{% elif signals_stale %}
+    <div class="snapshot-notice snapshot-notice-warn">
+        &#9888; Signals are older than {{ stale_after_hours }} hours.
+        {% if stale_action == 'filter' %}
+            Stale signals are hidden until the next successful refresh.
+        {% else %}
+            Displaying stale signals until the next successful refresh.
+        {% endif %}
+    </div>
 {% else %}
     {# status == "ok" — normal operational state #}
     <div class="snapshot-notice">
@@ -98,10 +108,13 @@
             <div class="signal-right">
                 <div class="confidence-wrap">
                     <div class="confidence-bar">
-                        <div class="confidence-fill conf-{{ 'high' if signal.confidence >= 0.70 else ('mid' if signal.confidence >= 0.55 else 'low') }}"
-                             style="width: {{ (signal.confidence * 100) | round | int }}%"></div>
+                        <div class="confidence-fill conf-{{ signal.confidence | confidence_css_class }}"
+                             style="width: {{ signal.confidence | confidence_percent }}%"></div>
                     </div>
-                    <span class="confidence-label">{{ (signal.confidence * 100) | round | int }}% conf.</span>
+                    <span class="confidence-label">
+                        {{ signal.confidence | confidence_percent }}%
+                        {{ signal.confidence | confidence_label }}
+                    </span>
                 </div>
                 <span class="regime-tag">{{ signal.regime }}</span>
             </div>
@@ -114,7 +127,7 @@
             <span class="feature-label">Top features:</span>
             {% for name, weight in signal.top_features %}
             <span class="feature-chip">
-                {{ name }} <span class="feature-weight">{{ (weight * 100) | round | int }}%</span>
+                {{ name }} <span class="feature-weight">{{ weight | importance_percent }}%</span>
             </span>
             {% endfor %}
         </div>

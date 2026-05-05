@@ -2,8 +2,8 @@
 """
 Signal generation pipeline — synthetic model v1.
 
-Writes data/signals_snapshot.json in the v2 envelope format consumed by
-the AlphaForgeAI file provider (SIGNAL_PROVIDER=file).
+Writes data/signals/latest.json in the v1 persisted snapshot schema consumed
+by the AlphaForgeAI file provider (SIGNAL_PROVIDER=file).
 
 Signals are seeded by (symbol + UTC-hour) so the output is deterministic
 within a given hour window and rotates automatically on every subsequent run.
@@ -25,6 +25,7 @@ import logging
 import random
 from datetime import datetime, timezone
 from pathlib import Path
+import sys
 
 logging.basicConfig(
     level=logging.INFO,
@@ -35,7 +36,11 @@ log = logging.getLogger("generate_signals")
 # ── Paths ─────────────────────────────────────────────────────────────────────
 
 REPO_ROOT     = Path(__file__).resolve().parents[1]
-SNAPSHOT_PATH = REPO_ROOT / "data" / "signals_snapshot.json"
+SNAPSHOT_PATH = REPO_ROOT / "data" / "signals" / "latest.json"
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+from app.repositories.signal_repository import SNAPSHOT_SCHEMA_VERSION, write_snapshot_atomic
 
 # ── Asset universe ─────────────────────────────────────────────────────────────
 
@@ -238,7 +243,7 @@ def _build_signal(symbol: str, now: datetime, timeframe: str | None = None) -> d
 
 def generate(asset_count: int = 12, multi_timeframe: bool = False) -> dict:
     """
-    Generate a full v2 snapshot envelope.
+    Generate a persisted snapshot envelope.
 
     When multi_timeframe=True each asset gets one signal per confluence
     timeframe (5m, 15m, 1h), enabling the confluence engine to evaluate
@@ -266,9 +271,11 @@ def generate(asset_count: int = 12, multi_timeframe: bool = False) -> dict:
         signals = [_build_signal(symbol, now) for symbol in assets]
 
     return {
+        "schema_version": SNAPSHOT_SCHEMA_VERSION,
         "generated_at":  now.strftime("%Y-%m-%dT%H:%M:%SZ"),
         "model_version": "synthetic-v1",
         "source":        "generated",
+        "signal_count":  len(signals),
         "signals":       signals,
     }
 
@@ -277,7 +284,7 @@ def generate(asset_count: int = 12, multi_timeframe: bool = False) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Generate signals_snapshot.json for AlphaForgeAI"
+        description="Generate the persisted latest signal snapshot for AlphaForgeAI"
     )
     parser.add_argument(
         "--dry-run",
@@ -317,11 +324,10 @@ def main() -> None:
         print(payload)
         return
 
-    SNAPSHOT_PATH.parent.mkdir(parents=True, exist_ok=True)
-    SNAPSHOT_PATH.write_text(payload + "\n", encoding="utf-8")
+    parsed = write_snapshot_atomic(snapshot, SNAPSHOT_PATH)
     log.info(
         "event=snapshot_written signal_count=%d path=%s generated_at=%s model_version=%s",
-        len(snapshot["signals"]),
+        parsed.signal_count,
         SNAPSHOT_PATH,
         snapshot["generated_at"],
         snapshot["model_version"],
