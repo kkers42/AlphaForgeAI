@@ -34,14 +34,16 @@ def get_signals() -> SignalSnapshot:
         local_provider,
         mock_provider,
         sentinel_provider,
+        sentinel_push_provider,
     )
 
     provider = settings.signal_provider
 
     _PROVIDERS = {
-        "mock":         mock_provider.get_signals,
-        "file":         file_provider.get_signals,
-        "sentinel_ssh": sentinel_provider.get_signals,
+        "mock":          mock_provider.get_signals,
+        "file":          file_provider.get_signals,
+        "sentinel_ssh":  sentinel_provider.get_signals,
+        "sentinel_push": sentinel_push_provider.get_signals,
     }
 
     load = _PROVIDERS.get(provider, local_provider.get_signals)

@@ -41,6 +41,13 @@ class Settings:
         default_factory=lambda: os.getenv("SIGNAL_STALE_ACTION", "mark").strip().lower()
     )
 
+    # ── Ingest API ───────────────────────────────────────────────────────────
+    # Bearer token required by POST /api/signals/ingest.
+    # Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
+    signal_ingest_api_key: str = field(
+        default_factory=lambda: os.getenv("SIGNAL_INGEST_API_KEY", "")
+    )
+
     # ── Sentinel SSH connection ──────────────────────────────────────────────
     # Required when signal_source == "sentinel_ssh".
     sentinel_ssh_host:         str = field(default_factory=lambda: os.getenv("SENTINEL_SSH_HOST", ""))

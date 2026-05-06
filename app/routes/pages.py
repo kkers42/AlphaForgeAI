@@ -68,7 +68,7 @@ def _signal_engine_health() -> dict:
     if provider == "mock":
         return engine
 
-    if provider != "file":
+    if provider not in ("file", "sentinel_push"):
         engine["status"] = "configured"
         engine["snapshot"]["status"] = "not_checked"
         return engine
