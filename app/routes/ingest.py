@@ -6,6 +6,8 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+from pathlib import Path
+
 from app.core.config import settings
 from app.repositories.signal_repository import (
     LATEST_SNAPSHOT_PATH,
@@ -47,8 +49,9 @@ async def ingest_signals(request: Request) -> dict:
         log.warning("event=ingest_rejected reason=schema_error detail=%s", exc)
         raise HTTPException(status_code=422, detail=str(exc))
 
+    dest = Path(settings.signal_file_path) if settings.signal_file_path else LATEST_SNAPSHOT_PATH
     try:
-        write_snapshot_atomic(raw, LATEST_SNAPSHOT_PATH)
+        write_snapshot_atomic(raw, dest)
     except Exception as exc:
         log.error("event=ingest_write_failed error=%s", exc)
         raise HTTPException(status_code=500, detail="Failed to persist snapshot")
