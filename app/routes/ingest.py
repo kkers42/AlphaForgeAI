@@ -6,14 +6,12 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from pathlib import Path
-
 from app.core.config import settings
 from app.repositories.signal_repository import (
     LATEST_SNAPSHOT_PATH,
     validate_snapshot_payload,
-    write_snapshot_atomic,
 )
+from app.services import gcs_signals
 
 router = APIRouter(prefix="/api")
 log = logging.getLogger(__name__)
@@ -33,10 +31,12 @@ def _require_api_key(creds: HTTPAuthorizationCredentials = Depends(_bearer)) -> 
 @router.post("/signals/ingest", dependencies=[Depends(_require_api_key)])
 async def ingest_signals(request: Request) -> dict:
     """
-    Accept a v1 snapshot from the Sentinel AI bot and persist it.
+    Accept a v1 snapshot from the Sentinel AI bot and persist it to GCS.
 
     The caller must supply ``Authorization: Bearer <SIGNAL_INGEST_API_KEY>``.
     The payload must be a valid v1 snapshot envelope (schema_version=1).
+    On success the snapshot is persisted to GCS so all Cloud Run instances
+    immediately read the same data on the next request.
     """
     try:
         raw = await request.json()
@@ -49,12 +49,11 @@ async def ingest_signals(request: Request) -> dict:
         log.warning("event=ingest_rejected reason=schema_error detail=%s", exc)
         raise HTTPException(status_code=422, detail=str(exc))
 
-    dest = Path(settings.signal_file_path) if settings.signal_file_path else LATEST_SNAPSHOT_PATH
-    try:
-        write_snapshot_atomic(raw, dest)
-    except Exception as exc:
-        log.error("event=ingest_write_failed error=%s", exc)
-        raise HTTPException(status_code=500, detail="Failed to persist snapshot")
+    # Persist to GCS — authoritative store for all Cloud Run instances.
+    ok = gcs_signals.upload_snapshot(raw, bucket_name=settings.gcs_signals_bucket)
+    if not ok:
+        log.error("event=ingest_gcs_failed signal_count=%d", len(snapshot.signals))
+        raise HTTPException(status_code=500, detail="Failed to persist snapshot to GCS")
 
     log.info(
         "event=signal_ingest signal_count=%d model=%s generated_at=%s",

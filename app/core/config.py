@@ -48,6 +48,13 @@ class Settings:
         default_factory=lambda: os.getenv("SIGNAL_INGEST_API_KEY", "")
     )
 
+    # ── GCS signal storage ───────────────────────────────────────────────────
+    # Bucket that stores the live sentinel_push snapshot (latest.json).
+    # The Cloud Run service account must have roles/storage.objectAdmin on it.
+    gcs_signals_bucket: str = field(
+        default_factory=lambda: os.getenv("GCS_SIGNALS_BUCKET", "alphaforgeai-signals")
+    )
+
     # ── Sentinel SSH connection ──────────────────────────────────────────────
     # Required when signal_source == "sentinel_ssh".
     sentinel_ssh_host:         str = field(default_factory=lambda: os.getenv("SENTINEL_SSH_HOST", ""))
