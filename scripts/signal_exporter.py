@@ -2,9 +2,13 @@
 """
 signal_exporter.py — Sentinel live signal exporter.
 
-Reads the latest prediction line from each xgb_runner ``{ASSET}_live.log``,
-builds a schema_version=1 snapshot compatible with AlphaForgeAI's ingest
-endpoint, and POSTs it via HTTPS.
+Reads the latest prediction line from each asset's log file, builds a
+schema_version=1 snapshot compatible with AlphaForgeAI's ingest endpoint,
+and POSTs it via HTTPS.
+
+Log file search order (first match wins):
+  1. ``logs/{ASSET}_live.log``   — live_trader mode (most assets)
+  2. ``logs/xgb_{asset}.log``    — xgb_runner-only mode (ZEC, ATOM, etc.)
 
 Usage
 -----
@@ -77,33 +81,46 @@ def _read_tail(path: Path, n: int = 300) -> list[str]:
         return []
 
 
+def _candidate_log_paths(asset: str) -> list[Path]:
+    """Return log paths to try for *asset*, in priority order."""
+    return [
+        LOG_DIR / f"{asset}_live.log",          # live_trader (most assets)
+        LOG_DIR / f"xgb_{asset.lower()}.log",   # xgb_runner-only (ZEC, ATOM, etc.)
+    ]
+
+
 def _parse_signal(asset: str, today: str) -> dict | None:
-    """Return a signal dict for *asset* based on its live log, or None."""
-    lines = _read_tail(LOG_DIR / f"{asset}_live.log")
-    for line in reversed(lines):
-        m = _SIGNAL_RE.match(line.strip())
-        if not m:
-            continue
-        hhmm, _asset, price_str, direction, conf_pct, regime, action = m.groups()
+    """Return a signal dict for *asset* based on its log files, or None.
 
-        # Map NO_TRADE → FLAT (AlphaForgeAI Direction enum)
-        direction_mapped = "FLAT" if direction == "NO_TRADE" else direction
-        confidence = round(float(conf_pct) / 100.0, 4)
-        generated_at = f"{today}T{hhmm}:00Z"
+    Checks ``{ASSET}_live.log`` first, then ``xgb_{asset}.log`` as fallback
+    for assets that run xgb_runner without the live_trader wrapper.
+    """
+    for log_path in _candidate_log_paths(asset):
+        lines = _read_tail(log_path)
+        for line in reversed(lines):
+            m = _SIGNAL_RE.match(line.strip())
+            if not m:
+                continue
+            hhmm, _asset, price_str, direction, conf_pct, regime, action = m.groups()
 
-        return {
-            "symbol":       asset,
-            "direction":    direction_mapped,
-            "timeframe":    "15m",
-            "confidence":   confidence,
-            "regime":       regime,
-            "thesis": (
-                f"{direction} signal at {conf_pct}% confidence [{regime}]. "
-                f"Price: ${price_str}. Action: {action}."
-            ),
-            "price":        float(price_str),
-            "generated_at": generated_at,
-        }
+            # Map NO_TRADE → FLAT (AlphaForgeAI Direction enum)
+            direction_mapped = "FLAT" if direction == "NO_TRADE" else direction
+            confidence = round(float(conf_pct) / 100.0, 4)
+            generated_at = f"{today}T{hhmm}:00Z"
+
+            return {
+                "symbol":       asset,
+                "direction":    direction_mapped,
+                "timeframe":    "15m",
+                "confidence":   confidence,
+                "regime":       regime,
+                "thesis": (
+                    f"{direction} signal at {conf_pct}% confidence [{regime}]. "
+                    f"Price: ${price_str}. Action: {action}."
+                ),
+                "price":        float(price_str),
+                "generated_at": generated_at,
+            }
     return None
 
 
