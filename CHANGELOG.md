@@ -8,7 +8,7 @@ Versioning: [Semantic Versioning](https://semver.org/spec/v2.0.0.html)
 
 ### Added
 - MCP development environment integration
-- Live Sentinel signal pipeline active (GCS bucket: alphaforgeai-signals)
+- Live Sentinel signal pipeline active (GCS: alphaforgeai-signals)
 - Standard project documentation (PROJECT_RULES, AI_WORKFLOW)
 
 ## [0.4.0] — Initial tracked release
