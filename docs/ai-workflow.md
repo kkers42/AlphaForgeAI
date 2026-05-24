@@ -46,3 +46,42 @@
 - Use Codex to implement the approved change in a feature branch.
 - Use Claude (or another reviewer) to challenge assumptions and review quality before merge.
 - Finalize through the standard PR review and approval process.
+
+---
+
+## What AI Must Not Do
+
+The following actions are prohibited for all AI systems regardless of role:
+
+- Read, output, or commit `.env` files, API keys, private keys, or secrets
+- Push directly to `master` — all changes must go through a branch and PR
+- Delete branches without explicit human instruction
+- Execute production Cloud Run deployments without human approval
+- Commit or log tokens, credentials, or private keys
+
+## Commit Message Format
+
+```
+<type>(<scope>): <short description>
+
+[optional body explaining WHY, not WHAT]
+```
+
+Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`, `ci`
+
+## Branch Naming Convention
+
+| Prefix | Purpose |
+|--------|---------|
+| `claude/<desc>` | Claude-assisted work |
+| `codex/<desc>` | Codex-assisted work |
+| `feature/<name>` | New features |
+| `fix/<name>` | Bug fixes |
+| `setup/<name>` | Infrastructure / tooling |
+
+## MCP Development Environment
+
+This project uses an MCP-enabled development server for AI-assisted workflows.
+Server paths and credentials are maintained privately — see the project maintainer
+for access configuration. Do not commit server addresses, usernames, or filesystem
+paths to this repository.
