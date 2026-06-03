@@ -1,0 +1,581 @@
+{
+  "updatedAt": "2026-06-03T21:08:36.871Z",
+  "createdAt": "2026-06-03T21:08:36.871Z",
+  "id": "v2UklINa1V07oUsX",
+  "name": "AlphaForgeAI - Crypto News Ingest",
+  "description": null,
+  "active": true,
+  "isArchived": false,
+  "nodes": [
+    {
+      "id": "node-schedule",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        300
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 13 * * *"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 22 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "node-rss-0",
+      "name": "RSS CoinDesk",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [
+        280,
+        0
+      ],
+      "parameters": {
+        "url": "https://www.coindesk.com/arc/outboundfeeds/rss/"
+      }
+    },
+    {
+      "id": "node-rss-1",
+      "name": "RSS Cointelegraph",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [
+        280,
+        100
+      ],
+      "parameters": {
+        "url": "https://cointelegraph.com/rss"
+      }
+    },
+    {
+      "id": "node-rss-2",
+      "name": "RSS The Block",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [
+        280,
+        200
+      ],
+      "parameters": {
+        "url": "https://www.theblock.co/rss.xml"
+      }
+    },
+    {
+      "id": "node-rss-3",
+      "name": "RSS Decrypt",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [
+        280,
+        300
+      ],
+      "parameters": {
+        "url": "https://decrypt.co/feed"
+      }
+    },
+    {
+      "id": "node-rss-4",
+      "name": "RSS Bitcoin Magazine",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [
+        280,
+        400
+      ],
+      "parameters": {
+        "url": "https://bitcoinmagazine.com/.rss/full/"
+      }
+    },
+    {
+      "id": "node-rss-5",
+      "name": "RSS Coinbase Blog",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [
+        280,
+        500
+      ],
+      "parameters": {
+        "url": "https://blog.coinbase.com/feed"
+      }
+    },
+    {
+      "id": "node-rss-6",
+      "name": "RSS Binance Blog",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [
+        280,
+        600
+      ],
+      "parameters": {
+        "url": "https://www.binance.com/en/blog/rss"
+      }
+    },
+    {
+      "id": "node-rss-7",
+      "name": "RSS Kraken Blog",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [
+        280,
+        700
+      ],
+      "parameters": {
+        "url": "https://blog.kraken.com/feed"
+      }
+    },
+    {
+      "id": "node-merge",
+      "name": "Merge RSS Feeds",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        560,
+        300
+      ],
+      "parameters": {
+        "mode": "append"
+      }
+    },
+    {
+      "id": "node-dedup-filter",
+      "name": "Dedup and Filter Recent",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        800,
+        300
+      ],
+      "parameters": {
+        "jsCode": "// Deduplicate by URL, filter to last 12 hours\nconst twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);\nconst seen = new Set();\nconst results = [];\n\nfor (const item of $input.all()) {\n  const url = item.json.link || item.json.url || item.json.guid || '';\n  if (!url || seen.has(url)) continue;\n  const pubDate = item.json.pubDate || item.json.isoDate || item.json.date || '';\n  if (pubDate) {\n    const dt = new Date(pubDate);\n    if (isNaN(dt.getTime()) || dt < twelveHoursAgo) continue;\n  }\n  seen.add(url);\n  results.push({\n    json: {\n      title: item.json.title || '',\n      url: url,\n      description: item.json.contentSnippet || item.json.content || item.json.summary || item.json.description || '',\n      published_at: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),\n      source: item.json.creator || item.json.author || ''\n    }\n  });\n}\n\nreturn results;\n"
+      }
+    },
+    {
+      "id": "node-openai",
+      "name": "OpenAI Enrich Article",
+      "type": "@n8n/n8n-nodes-langchain.openAi",
+      "typeVersion": 1.8,
+      "position": [
+        1040,
+        300
+      ],
+      "credentials": {
+        "openAiApi": {
+          "id": "9Znt8XfOc5MViaJI",
+          "name": "OpenAI AlphaForgeAI"
+        }
+      },
+      "parameters": {
+        "resource": "chat",
+        "operation": "message",
+        "model": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a crypto market analyst. Analyze this article and respond with ONLY valid JSON (no markdown, no explanation):\n{\n  \"relevance_score\": <0-10 integer, 10=highly relevant to crypto markets>,\n  \"summary\": \"<2-3 sentence factual summary, no financial advice>\",\n  \"category\": \"<one of: market, regulation, technology, defi, nft, exchange, macro, other>\",\n  \"assets\": [<list of ticker symbols mentioned, e.g. \"BTC\", \"ETH\", \"SOL\">],\n  \"sentiment\": \"<one of: bullish, bearish, neutral>\"\n}"
+            },
+            {
+              "role": "user",
+              "content": "Article title: {{ $json.title }}\nArticle content/description: {{ $json.description }}"
+            }
+          ]
+        },
+        "options": {
+          "temperature": 0.1,
+          "maxTokens": 400
+        }
+      }
+    },
+    {
+      "id": "node-parse-openai",
+      "name": "Parse OpenAI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1280,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const results = [];\nfor (const item of $input.all()) {\n  try {\n    const content = item.json.choices?.[0]?.message?.content || item.json.message?.content || '{}';\n    const cleaned = content.replace(/^```json\\s*/i, '').replace(/```\\s*$/i, '').trim();\n    const analysis = JSON.parse(cleaned);\n    results.push({\n      json: {\n        title: item.json.title || '',\n        url: item.json.url || '',\n        source: item.json.source || '',\n        published_at: item.json.published_at || new Date().toISOString(),\n        relevance_score: analysis.relevance_score || 0,\n        summary: analysis.summary || '',\n        category: analysis.category || 'other',\n        assets: analysis.assets || [],\n        sentiment: analysis.sentiment || 'neutral'\n      }\n    });\n  } catch (e) {\n    continue;\n  }\n}\nreturn results;\n"
+      }
+    },
+    {
+      "id": "node-filter",
+      "name": "Filter Relevance >= 7",
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2,
+      "position": [
+        1520,
+        300
+      ],
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-relevance",
+              "leftValue": "={{ $json.relevance_score }}",
+              "rightValue": 7,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        }
+      }
+    },
+    {
+      "id": "node-aggregate",
+      "name": "Build Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1760,
+        300
+      ],
+      "parameters": {
+        "jsCode": "const items = $input.all().map(item => ({\n  title: item.json.title,\n  source: item.json.source,\n  url: item.json.url,\n  published_at: item.json.published_at,\n  summary: item.json.summary,\n  category: item.json.category,\n  assets: item.json.assets,\n  sentiment: item.json.sentiment\n}));\n\nreturn [{ json: { schema_version: 1, items: items } }];\n"
+      }
+    },
+    {
+      "id": "node-http-post",
+      "name": "POST to AlphaForgeAI",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2000,
+        300
+      ],
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "obdPnYHxlHGmYD59",
+          "name": "AlphaForgeAI News Ingest Key"
+        }
+      },
+      "parameters": {
+        "method": "POST",
+        "url": "https://alphaforgeai.io/api/news/ingest",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={{ JSON.stringify($json) }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": true
+            }
+          }
+        }
+      }
+    },
+    {
+      "id": "node-log",
+      "name": "Log Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2240,
+        300
+      ],
+      "parameters": {
+        "mode": "manual",
+        "assignments": {
+          "assignments": [
+            {
+              "id": "log-status",
+              "name": "status",
+              "value": "={{ $json.statusCode || $json.status || 'unknown' }}",
+              "type": "string"
+            },
+            {
+              "id": "log-body",
+              "name": "response_body",
+              "value": "={{ JSON.stringify($json.body || $json) }}",
+              "type": "string"
+            },
+            {
+              "id": "log-time",
+              "name": "executed_at",
+              "value": "={{ new Date().toISOString() }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "RSS CoinDesk",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Cointelegraph",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS The Block",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Decrypt",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Bitcoin Magazine",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Coinbase Blog",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Binance Blog",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Kraken Blog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS CoinDesk": {
+      "main": [
+        [
+          {
+            "node": "Merge RSS Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Cointelegraph": {
+      "main": [
+        [
+          {
+            "node": "Merge RSS Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS The Block": {
+      "main": [
+        [
+          {
+            "node": "Merge RSS Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Decrypt": {
+      "main": [
+        [
+          {
+            "node": "Merge RSS Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Bitcoin Magazine": {
+      "main": [
+        [
+          {
+            "node": "Merge RSS Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Coinbase Blog": {
+      "main": [
+        [
+          {
+            "node": "Merge RSS Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Binance Blog": {
+      "main": [
+        [
+          {
+            "node": "Merge RSS Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Kraken Blog": {
+      "main": [
+        [
+          {
+            "node": "Merge RSS Feeds",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge RSS Feeds": {
+      "main": [
+        [
+          {
+            "node": "Dedup and Filter Recent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Dedup and Filter Recent": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Enrich Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Enrich Article": {
+      "main": [
+        [
+          {
+            "node": "Parse OpenAI Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse OpenAI Response": {
+      "main": [
+        [
+          {
+            "node": "Filter Relevance >= 7",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Relevance >= 7": {
+      "main": [
+        [
+          {
+            "node": "Build Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Payload": {
+      "main": [
+        [
+          {
+            "node": "POST to AlphaForgeAI",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST to AlphaForgeAI": {
+      "main": [
+        [
+          {
+            "node": "Log Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "staticData": {
+    "node:Schedule Trigger": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": null,
+  "pinData": null,
+  "versionId": "d1e9f13a-a4f0-48fa-8a94-a33c48a0cf04",
+  "activeVersionId": "d1e9f13a-a4f0-48fa-8a94-a33c48a0cf04",
+  "versionCounter": 4,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-06-03T21:08:36.880Z",
+      "createdAt": "2026-06-03T21:08:36.880Z",
+      "role": "workflow:owner",
+      "workflowId": "v2UklINa1V07oUsX",
+      "projectId": "cjdJ1PkoeYoShI9K",
+      "project": {
+        "updatedAt": "2026-03-19T16:13:43.715Z",
+        "createdAt": "2026-03-19T16:09:06.830Z",
+        "id": "cjdJ1PkoeYoShI9K",
+        "name": "josh grace <bgkegger34@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "acb9bce3-fbcc-4d19-9cf0-ec4235366813"
+      }
+    }
+  ],
+  "tags": []
+}
