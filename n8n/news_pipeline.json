@@ -1,0 +1,308 @@
+{
+  "name": "AlphaForgeAI — Crypto News Pipeline",
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "tags": [
+    { "name": "alphaforgeai" },
+    { "name": "news" }
+  ],
+  "nodes": [
+    {
+      "id": "node-schedule",
+      "name": "Schedule: Twice Daily",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [0, 240],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 13,22 * * *"
+            }
+          ]
+        }
+      }
+    },
+
+    {
+      "id": "node-define-feeds",
+      "name": "Define RSS Feeds",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [220, 240],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// AlphaForgeAI News Pipeline — RSS Feed Sources\n// Add or remove feeds here. Source names appear in the news cards.\nreturn [\n  { json: { url: 'https://feeds.feedburner.com/CoinDesk',                 source: 'CoinDesk'       } },\n  { json: { url: 'https://cointelegraph.com/rss',                         source: 'Cointelegraph'  } },\n  { json: { url: 'https://www.theblockcrypto.com/rss.xml',                source: 'The Block'      } },\n  { json: { url: 'https://decrypt.co/feed',                               source: 'Decrypt'        } },\n  { json: { url: 'https://bitcoinmagazine.com/.rss/full/',                source: 'Bitcoin Magazine' } },\n  { json: { url: 'https://blog.coinbase.com/feed',                        source: 'Coinbase Blog'  } },\n  { json: { url: 'https://www.binance.com/en/feed',                       source: 'Binance Blog'   } },\n  { json: { url: 'https://blog.kraken.com/feed',                          source: 'Kraken Blog'    } },\n];"
+      }
+    },
+
+    {
+      "id": "node-fetch-rss",
+      "name": "Fetch RSS Feeds",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 240],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "GET",
+        "url": "={{ $json.url }}",
+        "options": {
+          "response": {
+            "response": {
+              "responseFormat": "text",
+              "fullResponse": false
+            }
+          },
+          "timeout": 15000
+        }
+      }
+    },
+
+    {
+      "id": "node-parse-dedup",
+      "name": "Parse RSS + Deduplicate",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [700, 240],
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// Feed order must match Define RSS Feeds node\nconst SOURCES = [\n  'CoinDesk', 'Cointelegraph', 'The Block', 'Decrypt',\n  'Bitcoin Magazine', 'Coinbase Blog', 'Binance Blog', 'Kraken Blog'\n];\n\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.seenUrls) staticData.seenUrls = [];\nconst seenSet = new Set(staticData.seenUrls);\n\nconst allItems = $input.all();\nconst allArticles = [];\n\nfor (let i = 0; i < allItems.length; i++) {\n  const item = allItems[i];\n  const source = SOURCES[i] || 'Unknown';\n  if (item.json.error) { console.log(`Feed ${i} (${source}) failed: ${item.json.error}`); continue; }\n  const xml = item.json.data || item.json.body || '';\n  if (!xml || xml.length < 100) continue;\n  allArticles.push(...parseRssItems(xml, source));\n}\n\nconst seenThisRun = new Set();\nconst newArticles = [];\nfor (const article of allArticles) {\n  const url = article.url.trim();\n  if (!seenSet.has(url) && !seenThisRun.has(url)) {\n    seenThisRun.add(url);\n    newArticles.push({ ...article, url });\n  }\n}\n\n// Persist (cap at 2000 to prevent unbounded growth)\nconst updated = [...staticData.seenUrls, ...Array.from(seenThisRun)];\nstaticData.seenUrls = updated.slice(-2000);\n\nconsole.log(`Fetched ${allArticles.length} total. New (unseen): ${newArticles.length}`);\nreturn [{ json: { articles: newArticles, count: newArticles.length } }];\n\n// ── Helpers ──────────────────────────────────────────────────────────────────\n\nfunction parseRssItems(xml, source) {\n  const items = [];\n  const re = /<item[^>]*>([\\s\\S]*?)<\\/item>/gi;\n  let m;\n  while ((m = re.exec(xml)) !== null) {\n    const body = m[1];\n    const title = clean(tag(body, 'title'));\n    let link = clean(tag(body, 'link'));\n    if (!link) link = clean(tag(body, 'guid'));\n    if (!title || !link || !link.startsWith('http')) continue;\n    const rawDesc = clean(tag(body, 'content:encoded') || tag(body, 'description') || '');\n    const description = rawDesc.replace(/<[^>]+>/g, ' ').replace(/\\s+/g, ' ').trim().slice(0, 600);\n    const pubRaw = clean(tag(body, 'pubDate') || tag(body, 'dc:date') || '');\n    let published_at;\n    try { published_at = new Date(pubRaw).toISOString().replace('.000Z', 'Z'); }\n    catch { published_at = new Date().toISOString().replace('.000Z', 'Z'); }\n    items.push({ title, url: link.trim(), description, published_at, source });\n  }\n  return items;\n}\n\nfunction tag(xml, t) {\n  const m = xml.match(new RegExp('<' + t + '(?:\\\\s[^>]*)?>([\\\\s\\\\S]*?)<\\\\/' + t + '>', 'i'));\n  return m ? m[1] : '';\n}\n\nfunction clean(s) {\n  return s.replace(/<\\!\\[CDATA\\[([\\s\\S]*?)\\]\\]>/g, '$1').trim();\n}"
+      }
+    },
+
+    {
+      "id": "node-prep-openai",
+      "name": "Prepare OpenAI Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [940, 240],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const { articles, count } = $json;\n\nif (!articles || count === 0) {\n  console.log('No new articles this run — skipping OpenAI analysis');\n  return [];\n}\n\n// Cap batch size to control API cost (~$0.002 per run at 40 articles with gpt-4o-mini)\nconst batch = articles.slice(0, 40);\n\n// Stash originals for enrichment after OpenAI response\nconst staticData = $getWorkflowStaticData('global');\nstaticData.pendingArticles = batch;\n\nconst lines = batch.map((a, i) =>\n  `[${i + 1}] TITLE: ${a.title}\\nSOURCE: ${a.source}\\nURL: ${a.url}\\nDESC: ${a.description}`\n).join('\\n\\n');\n\nconst systemPrompt = `You are a professional crypto market intelligence analyst. Evaluate, summarize, and classify crypto news articles objectively.`;\n\nconst userPrompt = `Analyze the following crypto news articles. For each, return:\\n- index: the number in brackets, e.g. 1\\n- title: verbatim\\n- url: verbatim\\n- relevance_score: integer 1–10\\n  8–10 = major market-moving (regulatory action, exchange issues, major protocol events, significant capital flows)\\n  5–7  = relevant but not urgent\\n  1–4  = low relevance, opinion, sponsored, or not crypto-specific\\n- category: one of bitcoin | ethereum | defi | regulation | macro | exchange | nft | altcoins | security | mining | other\\n- assets: array of crypto tickers mentioned, e.g. [\\"BTC\\",\\"ETH\\"]. Empty array if none.\\n- sentiment: \\"bullish\\" | \\"bearish\\" | \\"neutral\\"\\n- summary: 2–3 sentences. Market relevance only. Calm, professional, informational tone. NO financial advice. NO buy/sell language. NO price predictions. NO hype.\\n\\nReturn ONLY valid JSON: { \\"scored\\": [ { \\"index\\": 1, \\"title\\": \\"...\\", \\"url\\": \\"...\\", \\"relevance_score\\": 8, \\"category\\": \\"bitcoin\\", \\"assets\\": [\\"BTC\\"], \\"sentiment\\": \\"neutral\\", \\"summary\\": \\"...\\" }, ... ] }\\n\\nArticles:\\n\\n${lines}`;\n\nreturn [{ json: { systemPrompt, userPrompt } }];"
+      }
+    },
+
+    {
+      "id": "node-openai-analyze",
+      "name": "OpenAI: Analyze Articles",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1180, 240],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "body": "={{ JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt }], response_format: { type: 'json_object' }, max_tokens: 6000, temperature: 0.2 }) }}"
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_WITH_YOUR_OPENAI_CRED_ID",
+          "name": "OpenAI account"
+        }
+      }
+    },
+
+    {
+      "id": "node-parse-filter",
+      "name": "Parse + Filter Qualified",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1420, 240],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const staticData = $getWorkflowStaticData('global');\nconst originals = staticData.pendingArticles || [];\nconst byUrl = {};\nfor (const a of originals) byUrl[a.url] = a;\n\nconst content = $json.choices?.[0]?.message?.content;\nif (!content) { console.error('OpenAI returned no content'); return []; }\n\nlet parsed;\ntry { parsed = JSON.parse(content); }\ncatch (e) { console.error('JSON parse failed:', e.message, content.slice(0, 200)); return []; }\n\nconst scored = parsed.scored || [];\nconst qualified = scored.filter(s => (s.relevance_score || 0) >= 7);\n\nconsole.log(`${qualified.length} of ${scored.length} articles scored >= 7`);\n\nif (qualified.length === 0) return [];\n\nconst enriched = qualified.map(s => ({\n  title:           s.title || '',\n  url:             s.url || '',\n  source:          byUrl[s.url]?.source       || 'Unknown',\n  published_at:    byUrl[s.url]?.published_at || new Date().toISOString().replace('.000Z', 'Z'),\n  category:        s.category    || 'other',\n  assets:          Array.isArray(s.assets) ? s.assets : [],\n  sentiment:       s.sentiment   || 'neutral',\n  summary:         s.summary     || '',\n  relevance_score: s.relevance_score,\n}));\n\nenriched.sort((a, b) => (b.relevance_score || 0) - (a.relevance_score || 0));\n\nreturn [{ json: { qualified: enriched, count: enriched.length } }];"
+      }
+    },
+
+    {
+      "id": "node-format-payload",
+      "name": "Format AlphaForgeAI Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1660, 240],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const { qualified, count } = $json;\nif (!qualified || count === 0) return [];\n\nconst items = qualified.map(a => ({\n  title:        a.title,\n  source:       a.source,\n  url:          a.url,\n  published_at: a.published_at,\n  summary:      a.summary,\n  category:     a.category,\n  assets:       a.assets,\n  sentiment:    a.sentiment,\n}));\n\nconst topStories = qualified.slice(0, 3);\n\nreturn [{ json: {\n  payload:     { schema_version: 1, items },\n  topStories,\n  count,\n} }];"
+      }
+    },
+
+    {
+      "id": "node-afi-ingest",
+      "name": "AlphaForgeAI: Ingest News",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1900, 240],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "POST",
+        "url": "https://alphaforgeai.io/api/news/ingest",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "body": "={{ JSON.stringify($json.payload) }}"
+      },
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "REPLACE_WITH_YOUR_AFI_CRED_ID",
+          "name": "AlphaForgeAI News API Key"
+        }
+      }
+    },
+
+    {
+      "id": "node-prep-xpost",
+      "name": "Prepare X Post Prompt",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2140, 240],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Pull topStories from the payload node (passes through AFI ingest response)\n// We stored topStories in static data as a fallback\nconst staticData = $getWorkflowStaticData('global');\n\n// Re-read from the format-payload node output (should still be in previous item)\n// n8n passes the INPUT item to continueOnFail downstream; topStories is there\nconst topStories = $json.topStories || staticData.topStoriesForX || [];\nif (topStories.length > 0) staticData.topStoriesForX = topStories;\n\nif (!topStories || topStories.length === 0) {\n  console.log('No top stories — skipping X post');\n  return [];\n}\n\nconst storyLines = topStories.map((s, i) =>\n  `${i + 1}. ${s.title} (${s.source})`\n).join('\\n');\n\nconst systemPrompt = `You write professional, calm, market-intelligence posts for AlphaForgeAI on X.com.`;\n\nconst userPrompt = `Write a single X post (tweet) summarizing today\\'s top crypto market news.\\n\\nRULES:\\n- Maximum 275 characters (strict)\\n- Calm, professional, market-intelligence tone\\n- No financial advice\\n- No buy/sell recommendations\\n- No price predictions\\n- No hype (do not use words like \\"massive\\", \\"moon\\", \\"explode\\")\\n- Mention the number of key stories or leading themes\\n- End the post with: alphaforgeai.io/news\\n- Max 1 relevant hashtag if it fits naturally\\n\\nToday\\'s top stories:\\n${storyLines}\\n\\nReturn ONLY the tweet text. No quotes, no explanation.`;\n\nreturn [{ json: { systemPrompt, userPrompt } }];"
+      }
+    },
+
+    {
+      "id": "node-openai-xpost",
+      "name": "OpenAI: Generate X Post",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2380, 240],
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "raw",
+        "body": "={{ JSON.stringify({ model: 'gpt-4o-mini', messages: [{ role: 'system', content: $json.systemPrompt }, { role: 'user', content: $json.userPrompt }], max_tokens: 300, temperature: 0.4 }) }}"
+      },
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_WITH_YOUR_OPENAI_CRED_ID",
+          "name": "OpenAI account"
+        }
+      }
+    },
+
+    {
+      "id": "node-extract-tweet",
+      "name": "Extract Tweet Text",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2620, 240],
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const content = $json.choices?.[0]?.message?.content;\nif (!content) { console.error('No tweet from OpenAI'); return []; }\n\n// Strip surrounding quotes if OpenAI added them\nlet tweet = content.trim().replace(/^[\"']|[\"']$/g, '');\n\n// Hard cap at 275 chars\nif (tweet.length > 275) {\n  tweet = tweet.slice(0, 272) + '...';\n}\n\nconsole.log(`Tweet (${tweet.length} chars): ${tweet}`);\nreturn [{ json: { tweet } }];"
+      }
+    },
+
+    {
+      "id": "node-post-x",
+      "name": "X: Post to X.com",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [2860, 240],
+      "parameters": {
+        "operation": "tweet",
+        "text": "={{ $json.tweet }}"
+      },
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "REPLACE_WITH_YOUR_X_CRED_ID",
+          "name": "X (Twitter) account"
+        }
+      }
+    }
+  ],
+
+  "connections": {
+    "Schedule: Twice Daily": {
+      "main": [
+        [{ "node": "Define RSS Feeds",       "type": "main", "index": 0 }]
+      ]
+    },
+    "Define RSS Feeds": {
+      "main": [
+        [{ "node": "Fetch RSS Feeds",         "type": "main", "index": 0 }]
+      ]
+    },
+    "Fetch RSS Feeds": {
+      "main": [
+        [{ "node": "Parse RSS + Deduplicate", "type": "main", "index": 0 }]
+      ]
+    },
+    "Parse RSS + Deduplicate": {
+      "main": [
+        [{ "node": "Prepare OpenAI Prompt",   "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepare OpenAI Prompt": {
+      "main": [
+        [{ "node": "OpenAI: Analyze Articles","type": "main", "index": 0 }]
+      ]
+    },
+    "OpenAI: Analyze Articles": {
+      "main": [
+        [{ "node": "Parse + Filter Qualified","type": "main", "index": 0 }]
+      ]
+    },
+    "Parse + Filter Qualified": {
+      "main": [
+        [{ "node": "Format AlphaForgeAI Payload","type": "main", "index": 0 }]
+      ]
+    },
+    "Format AlphaForgeAI Payload": {
+      "main": [
+        [{ "node": "AlphaForgeAI: Ingest News","type": "main", "index": 0 }]
+      ]
+    },
+    "AlphaForgeAI: Ingest News": {
+      "main": [
+        [{ "node": "Prepare X Post Prompt",   "type": "main", "index": 0 }]
+      ]
+    },
+    "Prepare X Post Prompt": {
+      "main": [
+        [{ "node": "OpenAI: Generate X Post", "type": "main", "index": 0 }]
+      ]
+    },
+    "OpenAI: Generate X Post": {
+      "main": [
+        [{ "node": "Extract Tweet Text",      "type": "main", "index": 0 }]
+      ]
+    },
+    "Extract Tweet Text": {
+      "main": [
+        [{ "node": "X: Post to X.com",        "type": "main", "index": 0 }]
+      ]
+    }
+  }
+}
