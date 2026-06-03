@@ -55,6 +55,30 @@ class Settings:
         default_factory=lambda: os.getenv("GCS_SIGNALS_BUCKET", "alphaforgeai-signals")
     )
 
+    # ── Explainer ingest API ─────────────────────────────────────────────────
+    # Bearer token required by POST /api/explainers/ingest.
+    # Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
+    explainer_ingest_api_key: str = field(
+        default_factory=lambda: os.getenv("EXPLAINER_INGEST_API_KEY", "")
+    )
+
+    # ── GCS explainer storage ────────────────────────────────────────────────
+    gcs_explainers_bucket: str = field(
+        default_factory=lambda: os.getenv("GCS_EXPLAINERS_BUCKET", "alphaforgeai-explainers")
+    )
+
+    # ── News ingest API ──────────────────────────────────────────────────────
+    # Bearer token required by POST /api/news/ingest.
+    # Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
+    news_ingest_api_key: str = field(
+        default_factory=lambda: os.getenv("NEWS_INGEST_API_KEY", "")
+    )
+
+    # ── GCS news storage ─────────────────────────────────────────────────────
+    gcs_news_bucket: str = field(
+        default_factory=lambda: os.getenv("GCS_NEWS_BUCKET", "alphaforgeai-news")
+    )
+
     # ── Sentinel SSH connection ──────────────────────────────────────────────
     # Required when signal_source == "sentinel_ssh".
     sentinel_ssh_host:         str = field(default_factory=lambda: os.getenv("SENTINEL_SSH_HOST", ""))
