@@ -4,13 +4,14 @@
 
 {% block content %}
 <section class="hero">
-    <h1>AI-Powered Crypto Market Intelligence</h1>
+    <h1>Crypto Market Intelligence — Built on Data, Not Hype</h1>
     <p class="tagline">
-        Quantitative signals, market explainers, and institutional-grade insights —
-        built on real models, not hype.
+        AlphaForgeAI aggregates quantitative signals, curated news, and market research
+        into one platform. Research and analysis only — not financial advice.
     </p>
     <div class="cta-row">
-        <a href="/dashboard" class="btn-primary">View Dashboard</a>
+        <a href="/signals" class="btn-primary">View Signals</a>
+        <a href="/news" class="btn-primary" style="background:var(--surface);color:var(--accent);border:1px solid var(--accent);">Market News</a>
         <span class="badge">Early Access</span>
     </div>
 </section>
@@ -19,17 +20,44 @@
     <div class="feature-card">
         <div class="feature-icon">&#9685;</div>
         <h3>Signal Intelligence</h3>
-        <p>XGBoost-driven trade signals across 28 crypto assets, updated every 15 minutes.</p>
+        <p>
+            XGBoost-driven directional signals across 28 crypto assets, refreshed every 15 minutes.
+            Each signal includes confidence score, market regime, and feature attribution.
+            For research purposes only.
+        </p>
+        <a href="/signals" class="module-link">View signals &rarr;</a>
+    </div>
+    <div class="feature-card">
+        <div class="feature-icon">&#128240;</div>
+        <h3>Market News</h3>
+        <p>
+            Curated crypto market intelligence — sourced, summarised, and classified by category,
+            asset, and sentiment. No editorial spin; structured data for decision support.
+        </p>
+        <a href="/news" class="module-link">Read news &rarr;</a>
     </div>
     <div class="feature-card">
         <div class="feature-icon">&#128202;</div>
         <h3>Market Explainers</h3>
-        <p>Daily AI-written breakdowns of what moved the market and why it matters.</p>
+        <p>
+            Structured breakdowns of significant market moves. What happened, which assets were
+            affected, and what the data shows — written for analysts, not traders.
+        </p>
+        <a href="/dashboard" class="module-link">View dashboard &rarr;</a>
     </div>
     <div class="feature-card">
-        <div class="feature-icon">&#128279;</div>
-        <h3>Onchain Context</h3>
-        <p>Long/short ratios, open interest, and exchange netflows surfaced as readable insight.</p>
+        <div class="feature-icon">&#128218;</div>
+        <h3>Market Memory <span style="font-size:11px;color:var(--muted);font-weight:400">(coming soon)</span></h3>
+        <p>
+            Long-term pattern library linking current market conditions to historical regimes.
+            Designed to give analysts persistent context across market cycles.
+        </p>
     </div>
+</section>
+
+<section style="margin-top:48px;padding:20px 24px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--muted);">
+    AlphaForgeAI provides market research and quantitative analysis tools.
+    Signals and analysis are for informational purposes only and do not constitute financial advice.
+    Past signal performance does not guarantee future results.
 </section>
 {% endblock %}

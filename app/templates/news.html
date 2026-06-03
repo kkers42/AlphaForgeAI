@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block title %}Market News{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Market News</h1>
+        <p class="page-subtitle">
+            Crypto market intelligence — sourced, summarised, and classified by AI.
+        </p>
+    </div>
+    {% if total %}
+    <div class="news-header-meta">
+        <span class="news-count-pill">{{ total }} article{% if total != 1 %}s{% endif %}</span>
+        {% if generated_at %}
+        <span class="news-updated">Updated {{ generated_at | format_pub_time }}</span>
+        {% endif %}
+        <a class="news-rss-link" href="/news/rss.xml" title="RSS feed">&#9656; RSS</a>
+    </div>
+    {% endif %}
+</div>
+
+{% if articles %}
+<div class="news-feed">
+    {% for article in articles %}
+    <article class="news-card">
+
+        <div class="news-card-top">
+            <a href="{{ article.url }}"
+               class="news-title"
+               target="_blank"
+               rel="noopener noreferrer">{{ article.title }}</a>
+            <div class="news-meta">
+                <span class="news-source">{{ article.source }}</span>
+                <span class="news-sep">&middot;</span>
+                <time class="news-time">{{ article.published_at | format_pub_time }}</time>
+            </div>
+        </div>
+
+        {% if article.category or article.assets or article.sentiment %}
+        <div class="news-tags">
+            {% if article.category %}
+            <span class="news-tag news-category">{{ article.category }}</span>
+            {% endif %}
+            {% for asset in (article.assets or []) %}
+            <span class="news-tag news-asset">{{ asset }}</span>
+            {% endfor %}
+            {% if article.sentiment %}
+            <span class="news-tag news-sentiment-{{ article.sentiment | lower }}">{{ article.sentiment }}</span>
+            {% endif %}
+        </div>
+        {% endif %}
+
+        <p class="news-summary">{{ article.summary }}</p>
+
+        <a class="news-read-more"
+           href="{{ article.url }}"
+           target="_blank"
+           rel="noopener noreferrer">Read original &rarr;</a>
+
+    </article>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="news-empty">
+    <h3>No news articles yet</h3>
+    <p>Market intelligence briefs will appear here once the pipeline delivers its first batch.</p>
+</div>
+{% endif %}
+
+{% endblock %}
