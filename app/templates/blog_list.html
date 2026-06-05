@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Blog{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <div>
+        <h1>Blog</h1>
+        <p class="page-subtitle">
+            Research, analysis, and market commentary from the AlphaForgeAI team.
+        </p>
+    </div>
+    {% if total %}
+    <div class="news-header-meta">
+        <span class="news-count-pill">{{ total }} post{% if total != 1 %}s{% endif %}</span>
+        {% if generated_at %}
+        <span class="news-updated">Updated {{ generated_at | format_pub_time }}</span>
+        {% endif %}
+    </div>
+    {% endif %}
+</div>
+
+{% if posts %}
+<div class="news-feed">
+    {% for post in posts %}
+    <article class="news-card">
+
+        <div class="news-card-top">
+            <a href="/blog/{{ post.slug }}" class="news-title">{{ post.title }}</a>
+            <div class="news-meta">
+                <span class="news-source">{{ post.author or "AlphaForgeAI" }}</span>
+                <span class="news-sep">&middot;</span>
+                <time class="news-time">{{ post.published_at | format_pub_time }}</time>
+            </div>
+        </div>
+
+        {% if post.tags or post.assets %}
+        <div class="news-tags">
+            {% for tag in (post.tags or []) %}
+            <span class="news-tag news-category">{{ tag }}</span>
+            {% endfor %}
+            {% for asset in (post.assets or []) %}
+            <span class="news-tag news-asset">{{ asset }}</span>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <p class="news-summary">{{ post.summary }}</p>
+
+        <a class="news-read-more" href="/blog/{{ post.slug }}">Read more &rarr;</a>
+
+    </article>
+    {% endfor %}
+</div>
+
+{% else %}
+<div class="news-empty">
+    <h3>No posts yet</h3>
+    <p>Blog posts will appear here once the pipeline delivers its first batch.</p>
+</div>
+{% endif %}
+
+{% endblock %}

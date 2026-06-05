@@ -79,6 +79,18 @@ class Settings:
         default_factory=lambda: os.getenv("GCS_NEWS_BUCKET", "alphaforgeai-news")
     )
 
+    # ── Blog ingest API ──────────────────────────────────────────────────────
+    # Bearer token required by POST /api/blog/ingest.
+    # Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
+    blog_ingest_api_key: str = field(
+        default_factory=lambda: os.getenv("BLOG_INGEST_API_KEY", "")
+    )
+
+    # ── GCS blog storage ──────────────────────────────────────────────────────
+    gcs_blog_bucket: str = field(
+        default_factory=lambda: os.getenv("GCS_BLOG_BUCKET", "alphaforgeai-blog")
+    )
+
     # ── Sentinel SSH connection ──────────────────────────────────────────────
     # Required when signal_source == "sentinel_ssh".
     sentinel_ssh_host:         str = field(default_factory=lambda: os.getenv("SENTINEL_SSH_HOST", ""))
