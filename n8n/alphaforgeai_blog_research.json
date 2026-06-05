@@ -1,0 +1,389 @@
+{
+  "name": "AlphaForgeAI - Daily Blog Research",
+  "nodes": [
+    {
+      "id": "node-schedule",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        0
+      ],
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 7 * * *"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "node-cg-global",
+      "name": "CoinGecko: Global Market",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        -200
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.coingecko.com/api/v3/global",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-cg-trending",
+      "name": "CoinGecko: Trending",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        0
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.coingecko.com/api/v3/search/trending",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-cg-markets",
+      "name": "CoinGecko: Top 10 Markets",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        200
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "GET",
+        "url": "https://api.coingecko.com/api/v3/coins/markets?vs_currency=usd&order=market_cap_desc&per_page=10&page=1&price_change_percentage=24h",
+        "options": {}
+      }
+    },
+    {
+      "id": "node-reddit-cc",
+      "name": "Reddit: r/CryptoCurrency",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        400
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.reddit.com/r/CryptoCurrency/hot.json?limit=5",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "AlphaForgeAI-Bot/1.0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "node-reddit-btc",
+      "name": "Reddit: r/Bitcoin",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        600
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.reddit.com/r/Bitcoin/hot.json?limit=5",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "AlphaForgeAI-Bot/1.0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "node-reddit-eth",
+      "name": "Reddit: r/ethereum",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        200,
+        800
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "method": "GET",
+        "url": "https://www.reddit.com/r/ethereum/hot.json?limit=5",
+        "options": {},
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "AlphaForgeAI-Bot/1.0"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "node-rss-coindesk",
+      "name": "RSS: CoinDesk",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        1000
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "url": "https://www.coindesk.com/arc/outboundfeeds/rss/"
+      }
+    },
+    {
+      "id": "node-rss-ct",
+      "name": "RSS: Cointelegraph",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.1,
+      "position": [
+        200,
+        1200
+      ],
+      "continueOnFail": true,
+      "parameters": {
+        "url": "https://cointelegraph.com/rss"
+      }
+    },
+    {
+      "id": "node-merge-rss",
+      "name": "Merge all RSS",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 3,
+      "position": [
+        400,
+        1100
+      ],
+      "parameters": {
+        "mode": "append"
+      }
+    },
+    {
+      "id": "node-code-assemble",
+      "name": "Code: Assemble Brief",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        700,
+        400
+      ],
+      "parameters": {
+        "jsCode": "// Collect all data\nlet global = {};\ntry { global = $('CoinGecko: Global Market').item.json.data || {}; } catch(e) {}\n\nlet trending = [];\ntry {\n  trending = ($('CoinGecko: Trending').item.json.coins || []).slice(0, 7).map(c => ({\n    name: c.item.name, symbol: c.item.symbol, rank: c.item.market_cap_rank\n  }));\n} catch(e) {}\n\nlet markets = [];\ntry {\n  markets = $('CoinGecko: Top 10 Markets').all().map(i => ({\n    name: i.json.name, symbol: (i.json.symbol || '').toUpperCase(),\n    price: i.json.current_price, change_24h: i.json.price_change_percentage_24h\n  }));\n} catch(e) {}\n\nconst redditPosts = [];\nfor (const sub of ['Reddit: r/CryptoCurrency', 'Reddit: r/Bitcoin', 'Reddit: r/ethereum']) {\n  try {\n    const posts = $(sub).item.json.data.children.slice(0, 3).map(p => ({\n      title: p.data.title,\n      url: 'https://reddit.com' + p.data.permalink,\n      score: p.data.score,\n      subreddit: p.data.subreddit\n    }));\n    redditPosts.push(...posts);\n  } catch(e) {}\n}\n\nlet headlines = [];\ntry {\n  headlines = $('Merge all RSS').all().slice(0, 10).map(i => ({\n    title: i.json.title,\n    url: i.json.link || i.json.url || '',\n    source: i.json.creator || ''\n  }));\n} catch(e) {}\n\nconst brief = {\n  date: new Date().toISOString().split('T')[0],\n  generated_at: new Date().toISOString(),\n  market_summary: {\n    total_market_cap_usd: global.total_market_cap?.usd,\n    total_volume_24h_usd: global.total_volume?.usd,\n    btc_dominance: global.market_cap_percentage?.btc,\n    market_cap_change_24h_pct: global.market_cap_change_percentage_24h_usd\n  },\n  trending_coins: trending,\n  top_markets: markets,\n  reddit_top_posts: redditPosts,\n  news_headlines: headlines\n};\n\nreturn [{ json: brief }];"
+      }
+    },
+    {
+      "id": "node-trigger-writer",
+      "name": "Trigger Writer Workflow",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        900,
+        400
+      ],
+      "parameters": {
+        "method": "POST",
+        "url": "https://n8n.snowportal.cloud/webhook/alphaforgeai-blog-writer",
+        "sendBody": true,
+        "contentType": "json",
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json) }}",
+        "options": {}
+      }
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "CoinGecko: Global Market",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "CoinGecko: Trending",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "CoinGecko: Top 10 Markets",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Reddit: r/CryptoCurrency",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Reddit: r/Bitcoin",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Reddit: r/ethereum",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS: CoinDesk",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS: Cointelegraph",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS: CoinDesk": {
+      "main": [
+        [
+          {
+            "node": "Merge all RSS",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS: Cointelegraph": {
+      "main": [
+        [
+          {
+            "node": "Merge all RSS",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "CoinGecko: Global Market": {
+      "main": [
+        [
+          {
+            "node": "Code: Assemble Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CoinGecko: Trending": {
+      "main": [
+        [
+          {
+            "node": "Code: Assemble Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CoinGecko: Top 10 Markets": {
+      "main": [
+        [
+          {
+            "node": "Code: Assemble Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reddit: r/CryptoCurrency": {
+      "main": [
+        [
+          {
+            "node": "Code: Assemble Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reddit: r/Bitcoin": {
+      "main": [
+        [
+          {
+            "node": "Code: Assemble Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Reddit: r/ethereum": {
+      "main": [
+        [
+          {
+            "node": "Code: Assemble Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge all RSS": {
+      "main": [
+        [
+          {
+            "node": "Code: Assemble Brief",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code: Assemble Brief": {
+      "main": [
+        [
+          {
+            "node": "Trigger Writer Workflow",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "callerPolicy": "workflowsFromSameOwner",
+    "availableInMCP": false
+  },
+  "meta": {
+    "description": "AlphaForgeAI daily blog research \u2014 Reddit, CoinGecko, RSS",
+    "version": "1.0.0",
+    "updated": "2026-06-05"
+  }
+}
