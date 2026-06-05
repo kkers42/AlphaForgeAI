@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+
+{% block title %}{{ post.title }}{% endblock %}
+
+{% block content %}
+<div style="margin-bottom:16px;">
+    <a href="/blog" class="news-read-more" style="font-size:13px;">&larr; Back to Blog</a>
+</div>
+
+<article class="news-card" style="max-width:800px;">
+
+    <div class="news-card-top">
+        <h1 class="news-title" style="font-size:1.6rem;line-height:1.3;">{{ post.title }}</h1>
+        <div class="news-meta" style="margin-top:8px;">
+            <span class="news-source">{{ post.author or "AlphaForgeAI" }}</span>
+            <span class="news-sep">&middot;</span>
+            <time class="news-time">{{ post.published_at | format_pub_time }}</time>
+        </div>
+    </div>
+
+    {% if post.tags or post.assets %}
+    <div class="news-tags" style="margin-top:12px;">
+        {% for tag in (post.tags or []) %}
+        <span class="news-tag news-category">{{ tag }}</span>
+        {% endfor %}
+        {% for asset in (post.assets or []) %}
+        <span class="news-tag news-asset">{{ asset }}</span>
+        {% endfor %}
+    </div>
+    {% endif %}
+
+    <div style="margin-top:24px;line-height:1.7;color:var(--text);">
+        <pre style="white-space:pre-wrap;font-family:inherit;margin:0;">{{ post.content }}</pre>
+    </div>
+
+    {% if post.sources %}
+    <div style="margin-top:32px;padding-top:16px;border-top:1px solid var(--border);">
+        <h3 style="font-size:14px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:0.05em;">Sources</h3>
+        <ul style="list-style:none;padding:0;margin:0;">
+            {% for source in post.sources %}
+            <li style="margin-bottom:6px;">
+                <a href="{{ source }}"
+                   target="_blank"
+                   rel="noopener noreferrer"
+                   style="color:var(--accent);font-size:13px;word-break:break-all;">{{ source }}</a>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+</article>
+
+<div style="margin-top:24px;">
+    <a href="/blog" class="news-read-more" style="font-size:13px;">&larr; Back to Blog</a>
+</div>
+
+{% endblock %}
