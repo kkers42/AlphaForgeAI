@@ -1,11 +1,5 @@
 {
-  "updatedAt": "2026-06-03T21:08:36.871Z",
-  "createdAt": "2026-06-03T21:08:36.871Z",
-  "id": "v2UklINa1V07oUsX",
   "name": "AlphaForgeAI - Crypto News Ingest",
-  "description": null,
-  "active": true,
-  "isArchived": false,
   "nodes": [
     {
       "id": "node-schedule",
@@ -21,11 +15,19 @@
           "interval": [
             {
               "field": "cronExpression",
-              "expression": "0 13 * * *"
+              "expression": "0 8 * * *"
             },
             {
               "field": "cronExpression",
-              "expression": "0 22 * * *"
+              "expression": "0 12 * * *"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 17 * * *"
+            },
+            {
+              "field": "cronExpression",
+              "expression": "0 21 * * *"
             }
           ]
         }
@@ -42,7 +44,8 @@
       ],
       "parameters": {
         "url": "https://www.coindesk.com/arc/outboundfeeds/rss/"
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "id": "node-rss-1",
@@ -55,7 +58,8 @@
       ],
       "parameters": {
         "url": "https://cointelegraph.com/rss"
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "id": "node-rss-2",
@@ -68,7 +72,8 @@
       ],
       "parameters": {
         "url": "https://www.theblock.co/rss.xml"
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "id": "node-rss-3",
@@ -81,7 +86,8 @@
       ],
       "parameters": {
         "url": "https://decrypt.co/feed"
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "id": "node-rss-4",
@@ -94,7 +100,8 @@
       ],
       "parameters": {
         "url": "https://bitcoinmagazine.com/.rss/full/"
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "id": "node-rss-5",
@@ -107,7 +114,8 @@
       ],
       "parameters": {
         "url": "https://blog.coinbase.com/feed"
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "id": "node-rss-6",
@@ -120,7 +128,8 @@
       ],
       "parameters": {
         "url": "https://www.binance.com/en/blog/rss"
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "id": "node-rss-7",
@@ -133,7 +142,8 @@
       ],
       "parameters": {
         "url": "https://blog.kraken.com/feed"
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "id": "node-merge",
@@ -146,7 +156,8 @@
       ],
       "parameters": {
         "mode": "append"
-      }
+      },
+      "onError": "continueRegularOutput"
     },
     {
       "id": "node-dedup-filter",
@@ -158,49 +169,33 @@
         300
       ],
       "parameters": {
-        "jsCode": "// Deduplicate by URL, filter to last 12 hours\nconst twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);\nconst seen = new Set();\nconst results = [];\n\nfor (const item of $input.all()) {\n  const url = item.json.link || item.json.url || item.json.guid || '';\n  if (!url || seen.has(url)) continue;\n  const pubDate = item.json.pubDate || item.json.isoDate || item.json.date || '';\n  if (pubDate) {\n    const dt = new Date(pubDate);\n    if (isNaN(dt.getTime()) || dt < twelveHoursAgo) continue;\n  }\n  seen.add(url);\n  results.push({\n    json: {\n      title: item.json.title || '',\n      url: url,\n      description: item.json.contentSnippet || item.json.content || item.json.summary || item.json.description || '',\n      published_at: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),\n      source: item.json.creator || item.json.author || ''\n    }\n  });\n}\n\nreturn results;\n"
+        "jsCode": "// Deduplicate by URL, filter to last 48 hours, max 20 articles per run\nconst cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);\nconst seen = new Set();\nconst results = [];\n\nfor (const item of $input.all()) {\n  const url = item.json.link || item.json.url || item.json.guid || '';\n  if (!url || seen.has(url)) continue;\n  const pubDate = item.json.pubDate || item.json.isoDate || item.json.date || '';\n  if (pubDate) {\n    const dt = new Date(pubDate);\n    if (isNaN(dt.getTime()) || dt < cutoff) continue;\n  }\n  // Derive source name from feed hostname if no author\n  let source = item.json.creator || item.json.author || '';\n  if (!source && url) {\n    try { source = new URL(url).hostname.replace('www.',''); } catch(e) {}\n  }\n  seen.add(url);\n  results.push({\n    json: {\n      title: item.json.title || '',\n      url: url,\n      description: item.json.contentSnippet || item.json.content || item.json.summary || item.json.description || '',\n      published_at: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),\n      source: source\n    }\n  });\n  if (results.length >= 20) break;\n}\n\nreturn results;\n"
       }
     },
     {
       "id": "node-openai",
       "name": "OpenAI Enrich Article",
-      "type": "@n8n/n8n-nodes-langchain.openAi",
-      "typeVersion": 1.8,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
-        1040,
+        1140,
         300
       ],
       "credentials": {
         "openAiApi": {
-          "id": "9Znt8XfOc5MViaJI",
-          "name": "OpenAI AlphaForgeAI"
+          "id": "3QlXsVVOjijxPwkU",
+          "name": "OpenAi account"
         }
       },
       "parameters": {
-        "resource": "chat",
-        "operation": "message",
-        "model": {
-          "__rl": true,
-          "value": "gpt-4o-mini",
-          "mode": "list",
-          "cachedResultName": "gpt-4o-mini"
-        },
-        "messages": {
-          "values": [
-            {
-              "role": "system",
-              "content": "You are a crypto market analyst. Analyze this article and respond with ONLY valid JSON (no markdown, no explanation):\n{\n  \"relevance_score\": <0-10 integer, 10=highly relevant to crypto markets>,\n  \"summary\": \"<2-3 sentence factual summary, no financial advice>\",\n  \"category\": \"<one of: market, regulation, technology, defi, nft, exchange, macro, other>\",\n  \"assets\": [<list of ticker symbols mentioned, e.g. \"BTC\", \"ETH\", \"SOL\">],\n  \"sentiment\": \"<one of: bullish, bearish, neutral>\"\n}"
-            },
-            {
-              "role": "user",
-              "content": "Article title: {{ $json.title }}\nArticle content/description: {{ $json.description }}"
-            }
-          ]
-        },
-        "options": {
-          "temperature": 0.1,
-          "maxTokens": 400
-        }
+        "method": "POST",
+        "url": "https://api.openai.com/v1/chat/completions",
+        "authentication": "predefinedCredentialType",
+        "nodeCredentialType": "openAiApi",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.openai_body }}"
       }
     },
     {
@@ -213,12 +208,12 @@
         300
       ],
       "parameters": {
-        "jsCode": "const results = [];\nfor (const item of $input.all()) {\n  try {\n    const content = item.json.choices?.[0]?.message?.content || item.json.message?.content || '{}';\n    const cleaned = content.replace(/^```json\\s*/i, '').replace(/```\\s*$/i, '').trim();\n    const analysis = JSON.parse(cleaned);\n    results.push({\n      json: {\n        title: item.json.title || '',\n        url: item.json.url || '',\n        source: item.json.source || '',\n        published_at: item.json.published_at || new Date().toISOString(),\n        relevance_score: analysis.relevance_score || 0,\n        summary: analysis.summary || '',\n        category: analysis.category || 'other',\n        assets: analysis.assets || [],\n        sentiment: analysis.sentiment || 'neutral'\n      }\n    });\n  } catch (e) {\n    continue;\n  }\n}\nreturn results;\n"
+        "jsCode": "const results = [];\nfor (const item of $input.all()) {\n  try {\n    // OpenAI HTTP response is in item.json\n    const oaiResp = item.json;\n    const content = oaiResp.choices && oaiResp.choices[0]\n      ? oaiResp.choices[0].message.content\n      : (oaiResp.content || '{}');\n    const cleaned = content.replace(/^```json/gi,'').replace(/^```/gi,'').replace(/```$/gi,'').trim();\n    const analysis = JSON.parse(cleaned);\n    // Get original article from the paired item in Build OpenAI Request\n    const orig = $('Build OpenAI Request').item.json;\n    results.push({ json: {\n      title: orig.title || '',\n      url: orig.url || '',\n      source: orig.source || '',\n      published_at: orig.published_at || new Date().toISOString(),\n      relevance_score: Number(analysis.relevance_score) || 0,\n      summary: analysis.summary || '',\n      category: analysis.category || 'other',\n      assets: analysis.assets || [],\n      sentiment: analysis.sentiment || 'neutral'\n    }});\n  } catch(e) { continue; }\n}\nreturn results;\n"
       }
     },
     {
       "id": "node-filter",
-      "name": "Filter Relevance >= 7",
+      "name": "Filter Relevance >= 4",
       "type": "n8n-nodes-base.filter",
       "typeVersion": 2,
       "position": [
@@ -236,7 +231,7 @@
             {
               "id": "cond-relevance",
               "leftValue": "={{ $json.relevance_score }}",
-              "rightValue": 7,
+              "rightValue": 4,
               "operator": {
                 "type": "number",
                 "operation": "gte"
@@ -271,7 +266,7 @@
       ],
       "credentials": {
         "httpHeaderAuth": {
-          "id": "obdPnYHxlHGmYD59",
+          "id": "TWoqkRTdRS1N4AXa",
           "name": "AlphaForgeAI News Ingest Key"
         }
       },
@@ -281,7 +276,7 @@
         "authentication": "predefinedCredentialType",
         "nodeCredentialType": "httpHeaderAuth",
         "sendBody": true,
-        "contentType": "json",
+        "contentType": "raw",
         "body": "={{ JSON.stringify($json) }}",
         "options": {
           "response": {
@@ -289,7 +284,8 @@
               "fullResponse": true
             }
           }
-        }
+        },
+        "rawContentType": "application/json"
       }
     },
     {
@@ -326,6 +322,37 @@
           ]
         },
         "options": {}
+      }
+    },
+    {
+      "id": "node-webhook-trigger",
+      "name": "Webhook Manual Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        0,
+        100
+      ],
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "alphaforgeai-news-trigger",
+        "responseMode": "onReceived",
+        "responseData": "firstEntryJson"
+      },
+      "webhookId": "alphaforgeai-news-trigger"
+    },
+    {
+      "id": "node-build-openai-req",
+      "name": "Build OpenAI Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        940,
+        300
+      ],
+      "parameters": {
+        "language": "javaScript",
+        "jsCode": "const item = $input.item.json;\nconst title = item.title || '';\nconst snippet = item.contentSnippet || item.description || '';\nconst content = snippet.substring(0, 800);\nconst sysMsg = 'You are a crypto market analyst. Respond ONLY with valid JSON, no markdown. Format: {\"relevance_score\": 5, \"summary\": \"text\", \"category\": \"market\", \"assets\": [\"BTC\"], \"sentiment\": \"neutral\"}';\nconst body = JSON.stringify({\n  model: 'gpt-4o-mini', temperature: 0.1, max_tokens: 400,\n  messages: [{role:'system',content:sysMsg},{role:'user',content:'Title: '+title+' '+content}]\n});\nreturn {json: {...item, openai_body: body}};\n"
       }
     }
   ],
@@ -479,7 +506,7 @@
       "main": [
         [
           {
-            "node": "OpenAI Enrich Article",
+            "node": "Build OpenAI Request",
             "type": "main",
             "index": 0
           }
@@ -501,18 +528,7 @@
       "main": [
         [
           {
-            "node": "Filter Relevance >= 7",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Filter Relevance >= 7": {
-      "main": [
-        [
-          {
-            "node": "Build Payload",
+            "node": "Filter Relevance >= 4",
             "type": "main",
             "index": 0
           }
@@ -540,6 +556,74 @@
           }
         ]
       ]
+    },
+    "Webhook Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "RSS CoinDesk",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Cointelegraph",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS The Block",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Decrypt",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Bitcoin Magazine",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Coinbase Blog",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Binance Blog",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "RSS Kraken Blog",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build OpenAI Request": {
+      "main": [
+        [
+          {
+            "node": "OpenAI Enrich Article",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter Relevance >= 4": {
+      "main": [
+        [
+          {
+            "node": "Build Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
   "settings": {
@@ -547,35 +631,9 @@
     "callerPolicy": "workflowsFromSameOwner",
     "availableInMCP": false
   },
-  "staticData": {
-    "node:Schedule Trigger": {
-      "recurrenceRules": []
-    }
-  },
-  "meta": null,
-  "pinData": null,
-  "versionId": "d1e9f13a-a4f0-48fa-8a94-a33c48a0cf04",
-  "activeVersionId": "d1e9f13a-a4f0-48fa-8a94-a33c48a0cf04",
-  "versionCounter": 4,
-  "triggerCount": 1,
-  "shared": [
-    {
-      "updatedAt": "2026-06-03T21:08:36.880Z",
-      "createdAt": "2026-06-03T21:08:36.880Z",
-      "role": "workflow:owner",
-      "workflowId": "v2UklINa1V07oUsX",
-      "projectId": "cjdJ1PkoeYoShI9K",
-      "project": {
-        "updatedAt": "2026-03-19T16:13:43.715Z",
-        "createdAt": "2026-03-19T16:09:06.830Z",
-        "id": "cjdJ1PkoeYoShI9K",
-        "name": "josh grace <bgkegger34@gmail.com>",
-        "type": "personal",
-        "icon": null,
-        "description": null,
-        "creatorId": "acb9bce3-fbcc-4d19-9cf0-ec4235366813"
-      }
-    }
-  ],
-  "tags": []
+  "meta": {
+    "description": "AlphaForgeAI crypto news ingest \u2014 4x/day, 8 RSS sources, OpenAI scoring",
+    "version": "1.3.0",
+    "updated": "2026-06-05"
+  }
 }
