@@ -11,8 +11,11 @@
 
     <div class="news-card-top">
         <h1 class="news-title" style="font-size:1.6rem;line-height:1.3;">{{ post.title }}</h1>
-        <div class="news-meta" style="margin-top:8px;">
-            <span class="news-source">{{ post.author or "AlphaForgeAI" }}</span>
+        <div class="news-meta" style="margin-top:12px;display:flex;align-items:center;gap:10px;">
+            <img src="/static/img/alpha-research-icon.png"
+                 alt="Alpha Research"
+                 style="width:32px;height:32px;border-radius:50%;object-fit:cover;flex-shrink:0;">
+            <span class="news-source">{{ post.author or "Alpha Research" }}</span>
             <span class="news-sep">&middot;</span>
             <time class="news-time">{{ post.published_at | format_pub_time }}</time>
         </div>
