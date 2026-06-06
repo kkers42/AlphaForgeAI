@@ -169,7 +169,7 @@
         300
       ],
       "parameters": {
-        "jsCode": "// Deduplicate by URL, filter to last 48 hours, max 20 articles per run\nconst cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);\nconst seen = new Set();\nconst results = [];\n\nfor (const item of $input.all()) {\n  const url = item.json.link || item.json.url || item.json.guid || '';\n  if (!url || seen.has(url)) continue;\n  const pubDate = item.json.pubDate || item.json.isoDate || item.json.date || '';\n  if (pubDate) {\n    const dt = new Date(pubDate);\n    if (isNaN(dt.getTime()) || dt < cutoff) continue;\n  }\n  // Derive source name from feed hostname if no author\n  let source = item.json.creator || item.json.author || '';\n  if (!source && url) {\n    try { source = new URL(url).hostname.replace('www.',''); } catch(e) {}\n  }\n  seen.add(url);\n  results.push({\n    json: {\n      title: item.json.title || '',\n      url: url,\n      description: item.json.contentSnippet || item.json.content || item.json.summary || item.json.description || '',\n      published_at: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),\n      source: source\n    }\n  });\n  if (results.length >= 20) break;\n}\n\nreturn results;\n"
+        "jsCode": "// Deduplicate by URL, filter to last 48 hours, max 20 articles per run\n// Title blocklist \u00e2\u20ac\u201d skip generic low-value patterns\nvar BLOCKLIST = [\n  \"what happened in crypto today\",\n  \"what's happening in crypto\",\n  \"crypto today\",\n  \"daily roundup\",\n  \"weekly roundup\",\n  \"week in review\",\n  \"morning brief\",\n  \"evening brief\"\n];\n\nfunction isBlocklisted(title) {\n  var lower = (title || '').toLowerCase();\n  for (var i = 0; i < BLOCKLIST.length; i++) {\n    if (lower.indexOf(BLOCKLIST[i]) !== -1) return true;\n  }\n  return false;\n}\n\nvar cutoff = new Date(Date.now() - 48 * 60 * 60 * 1000);\nvar seen = new Set();\nvar results = [];\n\nfor (var i = 0; i < $input.all().length; i++) {\n  var item = $input.all()[i];\n  var url = item.json.link || item.json.url || item.json.guid || '';\n  if (!url || seen.has(url)) continue;\n  if (isBlocklisted(item.json.title)) continue;\n  var pubDate = item.json.pubDate || item.json.isoDate || item.json.date || '';\n  if (pubDate) {\n    var dt = new Date(pubDate);\n    if (isNaN(dt.getTime()) || dt < cutoff) continue;\n  }\n  var source = item.json.creator || item.json.author || '';\n  if (!source && url) {\n    try { source = new URL(url).hostname.replace('www.', ''); } catch(e) {}\n  }\n  seen.add(url);\n  results.push({\n    json: {\n      title: item.json.title || '',\n      url: url,\n      description: item.json.contentSnippet || item.json.content || item.json.summary || item.json.description || '',\n      published_at: pubDate ? new Date(pubDate).toISOString() : new Date().toISOString(),\n      source: source\n    }\n  });\n  if (results.length >= 20) break;\n}\n\nreturn results;"
       }
     },
     {
@@ -632,8 +632,8 @@
     "availableInMCP": false
   },
   "meta": {
-    "description": "AlphaForgeAI crypto news ingest \u2014 sentiment: bullish/bearish/neutral only",
-    "version": "1.4.0",
+    "description": "AlphaForgeAI crypto news ingest \u2014 title blocklist, bullish/bearish/neutral sentiment",
+    "version": "1.5.0",
     "updated": "2026-06-06"
   }
 }

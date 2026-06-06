@@ -7,13 +7,14 @@ Object: latest.json
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 log = logging.getLogger(__name__)
 
 _BLOB_NAME = "latest.json"
-_MAX_ARTICLES = 100
+_MAX_ARTICLES = 50          # hard cap on stored articles
+_MAX_AGE_DAYS = 7           # drop articles older than this
 
 
 def _client_and_blob(bucket_name: str):
@@ -24,13 +25,28 @@ def _client_and_blob(bucket_name: str):
     return client, blob
 
 
+def _trim_articles(articles: list[dict]) -> list[dict]:
+    """Drop articles older than _MAX_AGE_DAYS, then cap at _MAX_ARTICLES."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=_MAX_AGE_DAYS)
+    fresh = []
+    for a in articles:
+        pub = a.get("published_at", "")
+        try:
+            dt = datetime.fromisoformat(pub.replace("Z", "+00:00"))
+            if dt >= cutoff:
+                fresh.append(a)
+        except (ValueError, AttributeError):
+            fresh.append(a)  # keep if unparseable
+    return fresh[:_MAX_ARTICLES]
+
+
 def _merge_articles(existing: list[dict], new_items: list[dict]) -> list[dict]:
-    """Deduplicate by URL, merge, sort newest-first, cap at _MAX_ARTICLES."""
+    """Deduplicate by URL, merge, sort newest-first, trim by age and count."""
     seen = {a["url"] for a in existing}
     additions = [item for item in new_items if item["url"] not in seen]
     merged = existing + additions
     merged.sort(key=lambda a: a.get("published_at", ""), reverse=True)
-    return merged[:_MAX_ARTICLES]
+    return _trim_articles(merged)
 
 
 def download_payload(bucket_name: str) -> Optional[dict]:
