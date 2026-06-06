@@ -119,6 +119,13 @@ class Settings:
         ).strip().lower() in ("1", "true", "yes")
     )
 
+    # ── Signal display limit ─────────────────────────────────────────────────
+    # Max signals shown on /signals, ranked by confidence desc before limiting.
+    # 0 = show all. Override with SIGNAL_DISPLAY_LIMIT env var or ?limit=all.
+    signal_display_limit: int = field(
+        default_factory=lambda: _int_env("SIGNAL_DISPLAY_LIMIT", 10)
+    )
+
     # ── Confluence engine ────────────────────────────────────────────────────
     # SIGNAL_CONFLUENCE=true  → run the multi-TF confluence engine after load
     # SIGNAL_CONFLUENCE_FILTER=true → only return confluent signals (full/partial)
