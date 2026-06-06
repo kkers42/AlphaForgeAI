@@ -17,6 +17,14 @@
     </div>
 </div>
 
+{# ── Limit banner ────────────────────────────────────────────────────────── #}
+{% if limit_active %}
+<div class="snapshot-notice snapshot-notice-info" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;">
+    <span>Showing top <strong>{{ display_limit }}</strong> of <strong>{{ total_available }}</strong> signals by confidence.</span>
+    <a href="/signals?limit=all" class="news-read-more" style="font-size:13px;white-space:nowrap;">Show all {{ total_available }} &rarr;</a>
+</div>
+{% endif %}
+
 {# ── Source meta bar ──────────────────────────────────────────────────────── #}
 <div class="source-meta">
     <span class="source-status-dot

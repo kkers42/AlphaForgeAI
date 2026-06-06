@@ -327,6 +327,11 @@ nav a.nav-active { color: var(--text); font-weight: 600; }
     color: var(--danger);
     background: var(--tint-short);
 }
+.snapshot-notice-info {
+    border-color: var(--accent);
+    color: var(--text);
+    background: var(--surface3);
+}
 
 /* ── Signal feed ─────────────────────────────────────────────── */
 .signal-feed { display: flex; flex-direction: column; gap: 14px; }

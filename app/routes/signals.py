@@ -27,15 +27,29 @@ templates.env.filters["importance_percent"] = normalize_percent
 
 @router.get("/signals", response_class=HTMLResponse)
 async def signal_feed(request: Request):
-    snapshot = get_signals()
+    snapshot  = get_signals()
     staleness = evaluate_signal_staleness(snapshot.generated_at)
-    signals = []
+    signals   = []
     if not (staleness.is_stale and staleness.action == "filter"):
         signals = snapshot.signals
+
+    # Sort by confidence desc (highest-conviction signals first)
+    signals = sorted(signals, key=lambda s: getattr(s, "confidence", 0) or 0, reverse=True)
+
+    # Apply display limit — ?limit=all bypasses the cap
+    limit_param   = request.query_params.get("limit", "").strip().lower()
+    show_all      = limit_param == "all" or settings.signal_display_limit == 0
+    total_signals = len(signals)
+    if not show_all and settings.signal_display_limit > 0:
+        signals = signals[:settings.signal_display_limit]
+    limit_active  = not show_all and total_signals > len(signals)
+
     log.info(
-        "event=signal_feed_render signal_count=%d source=%s status=%s "
+        "event=signal_feed_render signal_count=%d total=%d limit=%d source=%s status=%s "
         "used_mock_fallback=%s generated_at=%s model_version=%s",
         len(signals),
+        total_signals,
+        settings.signal_display_limit,
         snapshot.source,
         snapshot.status,
         snapshot.used_mock_fallback,
@@ -65,6 +79,9 @@ async def signal_feed(request: Request):
         # signal data
         "signals":            signals,
         "total":              len(signals),
+        "total_available":    total_signals,
+        "limit_active":       limit_active,
+        "display_limit":      settings.signal_display_limit,
         "long_count":         sum(1 for s in signals if s.direction == "LONG"),
         "short_count":        sum(1 for s in signals if s.direction == "SHORT"),
         "flat_count":         sum(1 for s in signals if s.direction == "FLAT"),
