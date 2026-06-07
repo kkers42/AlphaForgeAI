@@ -2,12 +2,34 @@
 
 {% block title %}Blog{% endblock %}
 
+{% block seo %}
+<meta name="description" content="Daily crypto market analysis, signals, and commentary by AlphaForgeAI — AI-powered insights for Bitcoin, Ethereum, and the broader crypto market." />
+<meta name="keywords" content="crypto blog, bitcoin analysis, ethereum market, crypto commentary, AlphaForgeAI, daily crypto brief, market signals, crypto news analysis" />
+<meta name="robots" content="index, follow" />
+<meta name="author" content="AlphaForgeAI" />
+
+<meta property="og:site_name" content="AlphaForgeAI" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="Blog — AlphaForgeAI" />
+<meta property="og:description" content="Daily crypto market analysis, signals, and commentary by AlphaForgeAI." />
+<meta property="og:url" content="https://alphaforgeai.io/blog" />
+<meta property="og:image" content="https://alphaforgeai.io/static/img/alpha-research-icon.png" />
+
+<meta name="twitter:card" content="summary" />
+<meta name="twitter:site" content="@AlphaForgeAI" />
+<meta name="twitter:title" content="Blog — AlphaForgeAI" />
+<meta name="twitter:description" content="Daily crypto market analysis, signals, and commentary by AlphaForgeAI." />
+<meta name="twitter:image" content="https://alphaforgeai.io/static/img/alpha-research-icon.png" />
+
+<link rel="canonical" href="https://alphaforgeai.io/blog" />
+{% endblock %}
+
 {% block content %}
 <div class="page-header">
     <div>
         <h1>Blog</h1>
         <p class="page-subtitle">
-            Research, analysis, and market commentary by Alpha Research.
+            Research, analysis, and market commentary by AlphaForgeAI.
         </p>
     </div>
     {% if total %}
@@ -29,9 +51,9 @@
             <a href="/blog/{{ post.slug }}" class="news-title">{{ post.title }}</a>
             <div class="news-meta" style="display:flex;align-items:center;gap:8px;">
                 <img src="/static/img/alpha-research-icon.png"
-                     alt="Alpha Research"
+                     alt="AlphaForgeAI"
                      style="width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0;">
-                <span class="news-source">{{ post.author or "Alpha Research" }}</span>
+                <span class="news-source">{{ post.author or "AlphaForgeAI" }}</span>
                 <span class="news-sep">&middot;</span>
                 <time class="news-time">{{ post.published_at | format_pub_time }}</time>
             </div>
