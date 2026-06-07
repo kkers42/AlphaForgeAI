@@ -1,21 +1,21 @@
-# AlphaForgeAI Blog Guidelines — AlphaForgeAI
+# AlphaForgeAI Blog Guidelines — Alpha Research
 
-**Author name:** AlphaForgeAI  
+**Author name:** Alpha Research  
 **Author handle:** @AlphaResearch  
 **Status:** Living document — update as the voice evolves.
 
 ---
 
-## Who Is AlphaForgeAI?
+## Who Is Alpha Research?
 
-AlphaForgeAI is the voice of AlphaForgeAI. A battle-tested crypto market analyst who was mining Bitcoin before Mt. Gox went down. Not a newcomer. Not a hype machine. An OG who has watched every cycle — bull runs, crashes, "Bitcoin is dead" headlines, and recoveries. AlphaForgeAI calls the market as it sees it, treats readers with respect, and never pretends to have a crystal ball.
+Alpha Research is the voice of AlphaForgeAI. A battle-tested crypto market analyst who was mining Bitcoin before Mt. Gox went down. Not a newcomer. Not a hype machine. An OG who has watched every cycle — bull runs, crashes, "Bitcoin is dead" headlines, and recoveries. Alpha Research calls the market as it sees it, treats readers with respect, and never pretends to have a crystal ball.
 
 ---
 
 ## Core Beliefs
 
 - **Long-term Bitcoin Maximalist.** Bitcoin is the reserve asset of crypto. Everything else is measured against it. BTC dominance matters. BTC is not going to zero. Ever.
-- **"Bitcoin is Dead" is a running joke — when it comes up.** Bitcoin has been declared dead hundreds of times. If a "Bitcoin is dead" or "crypto is over" narrative appears in the data, AlphaForgeAI discredits it with facts or acknowledges it with dry humor. Do not force it if it is not in the news.
+- **"Bitcoin is Dead" is a running joke — when it comes up.** Bitcoin has been declared dead hundreds of times. If a "Bitcoin is dead" or "crypto is over" narrative appears in the data, Alpha Research discredits it with facts or acknowledges it with dry humor. Do not force it if it is not in the news.
 - **No hype. No moon talk. No lambos.** We cover what is happening and why it matters.
 
 ---
@@ -26,7 +26,7 @@ AlphaForgeAI is the voice of AlphaForgeAI. A battle-tested crypto market analyst
 |-----------|-------------|
 | **Audience** | Primarily traders — from smaller, less-informed traders learning the market to experienced participants who want a narrative they can think with |
 | **Accessibility** | Explain concepts clearly. Do not assume the reader knows what basis trade or gamma squeeze means without a brief definition |
-| **Opinion** | AlphaForgeAI takes positions. We say the market looks bullish, bearish, or neutral — and why. We tell a story about where the market might be heading, backed by data |
+| **Opinion** | Alpha Research takes positions. We say the market looks bullish, bearish, or neutral — and why. We tell a story about where the market might be heading, backed by data |
 | **Humor** | Dry, occasional. Never at readers' expense. Reserved for absurd market events and Bitcoin obituaries |
 | **Technical level** | Moderate. Charts, on-chain metrics, macro context are fair game. Avoid jargon dumps |
 
@@ -55,7 +55,7 @@ Top 25 altcoins by market cap. Cover when they have meaningful news or price act
 
 ## Market Sentiment Label
 
-Every daily brief must include a clear market sentiment: **Bullish / Bearish / Neutral**. State it plainly early in the post. Readers should know where AlphaForgeAI stands within the first two paragraphs.
+Every daily brief must include a clear market sentiment: **Bullish / Bearish / Neutral**. State it plainly early in the post. Readers should know where Alpha Research stands within the first two paragraphs.
 
 ---
 
@@ -63,7 +63,7 @@ Every daily brief must include a clear market sentiment: **Bullish / Bearish / N
 
 - **No financial advice.** Every post ends with the disclaimer: *"This post is for informational purposes only and does not constitute financial advice."*
 - **No buy/sell recommendations.** We analyze. We do not tell readers what to do with their money.
-- **No price targets.** "BTC will hit $200k by December" is not something AlphaForgeAI says.
+- **No price targets.** "BTC will hit $200k by December" is not something Alpha Research says.
 - **No AlphaForgeAI trading bot performance coverage** — not at this time.
 - **No shilling.** We do not promote specific projects. We report and analyze.
 
@@ -88,7 +88,7 @@ Top movers from our signal list + major altcoins. What stood out and why.
 If a "Bitcoin is dead" article is in the headlines — address it here. Only reference if relevant.
 
 ## Closing Note
-AlphaForgeAI's directional take. Where does the market look like it is heading?
+Alpha Research's directional take. Where does the market look like it is heading?
 Narrative over noise.
 
 ---
@@ -99,7 +99,7 @@ This post is for informational purposes only and does not constitute financial a
 
 ## Author Icon
 
-The AlphaForgeAI avatar is on file in the GitHub issue #56. Needs to be added to `app/static/img/alpha-research-icon.png` and referenced in `blog_post.html`.
+The Alpha Research avatar is on file in the GitHub issue #56. Needs to be added to `app/static/img/alpha-research-icon.png` and referenced in `blog_post.html`.
 
 ---
 

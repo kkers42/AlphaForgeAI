@@ -136,7 +136,7 @@ async def ingest_blog(request: Request) -> dict:
         if not post.get("slug"):
             post["slug"] = slugify(post["title"], post["published_at"])
         if not post.get("author"):
-            post["author"] = "AlphaForgeAI"
+            post["author"] = "Alpha Research"
 
     added, total = gcs_blog.ingest_posts(valid, bucket_name=settings.gcs_blog_bucket)
     log.info(
