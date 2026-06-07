@@ -17,7 +17,7 @@ def _int_env(var: str, default: int) -> int:
 @dataclass
 class Settings:
     app_name:     str = "AlphaForgeAI"
-    app_version:  str = "0.4.0"
+    app_version:  str = "0.6.0"
     environment:  str = field(default_factory=lambda: os.getenv("ENVIRONMENT", "development"))
     signal_source: str = field(default_factory=lambda: os.getenv("SIGNAL_SOURCE", "local_snapshot"))
 
