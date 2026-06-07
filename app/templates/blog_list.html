@@ -29,7 +29,7 @@
     <div>
         <h1>Blog</h1>
         <p class="page-subtitle">
-            Research, analysis, and market commentary by AlphaForgeAI.
+            Research, analysis, and market commentary by Alpha Research.
         </p>
     </div>
     {% if total %}
@@ -51,9 +51,9 @@
             <a href="/blog/{{ post.slug }}" class="news-title">{{ post.title }}</a>
             <div class="news-meta" style="display:flex;align-items:center;gap:8px;">
                 <img src="/static/img/alpha-research-icon.png"
-                     alt="AlphaForgeAI"
+                     alt="Alpha Research"
                      style="width:22px;height:22px;border-radius:50%;object-fit:cover;flex-shrink:0;">
-                <span class="news-source">{{ post.author or "AlphaForgeAI" }}</span>
+                <span class="news-source">{{ post.author or "Alpha Research" }}</span>
                 <span class="news-sep">&middot;</span>
                 <time class="news-time">{{ post.published_at | format_pub_time }}</time>
             </div>
