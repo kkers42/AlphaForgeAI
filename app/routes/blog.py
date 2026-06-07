@@ -1,6 +1,7 @@
 """Blog routes — ingest from external pipeline + serve to frontend."""
 
 import logging
+import re
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -8,6 +9,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import HTMLResponse
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from fastapi.templating import Jinja2Templates
+from markupsafe import Markup
 
 from app.core.config import settings
 from app.services import gcs_blog
@@ -27,7 +29,50 @@ def _format_pub_time(iso: str) -> str:
         return iso
 
 
+def _markdown_filter(text: str) -> Markup:
+    """
+    Lightweight markdown → HTML for blog post bodies.
+    Handles: ## headings, **bold**, *italic*, `code`, blank-line paragraphs.
+    Uses markupsafe.Markup so Jinja2 does NOT double-escape the output.
+    """
+    if not text:
+        return Markup("")
+    try:
+        import markdown as md_lib  # type: ignore
+        html = md_lib.markdown(
+            text,
+            extensions=["nl2br", "sane_lists"],
+        )
+        return Markup(html)
+    except ImportError:
+        pass
+
+    # Fallback: minimal regex renderer (no external dep needed)
+    import html as html_mod
+    safe = html_mod.escape(text)
+
+    # ## Heading 2
+    safe = re.sub(r"(?m)^## (.+)$", r"<h2>\1</h2>", safe)
+    # ### Heading 3
+    safe = re.sub(r"(?m)^### (.+)$", r"<h3>\1</h3>", safe)
+    # **bold**
+    safe = re.sub(r"\*\*(.+?)\*\*", r"<strong>\1</strong>", safe)
+    # *italic*
+    safe = re.sub(r"\*(.+?)\*", r"<em>\1</em>", safe)
+    # `code`
+    safe = re.sub(r"`(.+?)`", r"<code>\1</code>", safe)
+    # blank lines → paragraph breaks
+    safe = re.sub(r"\n\n+", "</p><p>", safe)
+    safe = "<p>" + safe + "</p>"
+    # clean up p tags around headings
+    safe = re.sub(r"<p>(<h[23]>)", r"\1", safe)
+    safe = re.sub(r"(</h[23]>)</p>", r"\1", safe)
+
+    return Markup(safe)
+
+
 templates.env.filters["format_pub_time"] = _format_pub_time
+templates.env.filters["markdown"] = _markdown_filter
 
 
 def _require_blog_api_key(creds: HTTPAuthorizationCredentials = Depends(_bearer)) -> None:
