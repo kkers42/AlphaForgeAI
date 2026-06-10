@@ -1,4 +1,7 @@
 {
+  "updatedAt": "2026-06-08T23:38:09.704Z",
+  "createdAt": "2026-06-05T16:18:59.532Z",
+  "id": "HnYfCc7VuOPXumY6",
   "name": "AlphaForgeAI - Daily Blog Writer",
   "description": null,
   "active": true,
@@ -136,6 +139,28 @@
           ]
         }
       }
+    },
+    {
+      "id": "node-x-tweet-writer",
+      "name": "Post to X",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [
+        1000,
+        0
+      ],
+      "parameters": {
+        "operation": "tweet",
+        "text": "={{ ($json.posts[0].content.match(/\\*\\*(Bullish|Bearish|Neutral)\\*\\*/) || ['',''])[1] ? ($json.posts[0].content.match(/\\*\\*(Bullish|Bearish|Neutral)\\*\\*/) || ['',''])[1] + ': ' : ''+ $json.posts[0].title + '\n\n' + 'Full brief: https://alphaforgeai.io/blog/' + $json.posts[0].slug + '\n\n'+ '#Bitcoin #Crypto #AlphaForgeAI' }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "4ieYtwKyXyn577YX",
+          "name": "AlphaForgeAI X Account"
+        }
+      },
+      "continueOnFail": true
     }
   ],
   "connections": {
@@ -190,6 +215,11 @@
             "node": "Log Result",
             "type": "main",
             "index": 0
+          },
+          {
+            "node": "Post to X",
+            "type": "main",
+            "index": 0
           }
         ]
       ]
@@ -201,13 +231,9 @@
     "availableInMCP": false
   },
   "staticData": null,
-  "meta": {
-    "description": "AlphaForgeAI daily blog writer -- AlphaForgeAI voice, Claude Sonnet",
-    "version": "2.3.0",
-    "updated": "2026-06-08",
-    "active_workflow_id": "HnYfCc7VuOPXumY6"
-  },
+  "meta": null,
   "pinData": null,
+  "versionId": "d0b18f61-900d-4497-9e75-003639a91fb2",
   "activeVersionId": "d0b18f61-900d-4497-9e75-003639a91fb2",
   "versionCounter": 31,
   "triggerCount": 1,
@@ -234,7 +260,7 @@
             "userId": "d19f703f-0161-47c5-8fda-00ff16f8c9d5",
             "projectId": "Hpq6RFprZLmqJoZi",
             "user": {
-              "updatedAt": "2026-06-08T21:27:25.104Z",
+              "updatedAt": "2026-06-10T11:21:31.308Z",
               "createdAt": "2025-10-24T00:51:32.565Z",
               "id": "d19f703f-0161-47c5-8fda-00ff16f8c9d5",
               "email": "bgkegger34@gmail.com",
@@ -252,7 +278,7 @@
               },
               "disabled": false,
               "mfaEnabled": false,
-              "lastActiveAt": "2026-06-08",
+              "lastActiveAt": "2026-06-10",
               "isPending": false
             }
           }

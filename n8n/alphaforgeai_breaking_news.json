@@ -1,5 +1,11 @@
 {
+  "updatedAt": "2026-06-07T17:49:34.741Z",
+  "createdAt": "2026-06-07T16:10:31.131Z",
+  "id": "2UIRCTvS0nO2XDSz",
   "name": "AlphaForgeAI - Breaking News Blog Trigger",
+  "description": null,
+  "active": true,
+  "isArchived": false,
   "nodes": [
     {
       "parameters": {
@@ -16,30 +22,43 @@
       "name": "Every 30 Minutes",
       "type": "n8n-nodes-base.scheduleTrigger",
       "typeVersion": 1.2,
-      "position": [120, 300]
+      "position": [
+        120,
+        300
+      ]
     },
     {
       "parameters": {
         "url": "https://alphaforgeai.io/api/news",
-        "options": { "timeout": 15000 }
+        "options": {
+          "timeout": 15000
+        }
       },
       "id": "bn-0002-0002-0002-0002-000000000002",
       "name": "Fetch News Feed",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [340, 300],
+      "position": [
+        340,
+        300
+      ],
       "continueOnFail": true
     },
     {
       "parameters": {
         "url": "https://alphaforgeai.io/api/blog",
-        "options": { "timeout": 15000 }
+        "options": {
+          "timeout": 15000
+        }
       },
       "id": "bn-0003-0003-0003-0003-000000000003",
       "name": "Fetch Blog Feed",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [560, 300],
+      "position": [
+        560,
+        300
+      ],
       "continueOnFail": true
     },
     {
@@ -50,18 +69,28 @@
       "name": "Evaluate + Gate",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [780, 300]
+      "position": [
+        780,
+        300
+      ]
     },
     {
       "parameters": {
         "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
           "conditions": [
             {
               "id": "gate-cond-001",
               "leftValue": "={{ $json.shouldPost }}",
               "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
             }
           ],
           "combinator": "and"
@@ -72,7 +101,10 @@
       "name": "Should Post?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 2,
-      "position": [1000, 300]
+      "position": [
+        1000,
+        300
+      ]
     },
     {
       "parameters": {
@@ -83,7 +115,10 @@
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
-            { "name": "anthropic-version", "value": "2023-06-01" }
+            {
+              "name": "anthropic-version",
+              "value": "2023-06-01"
+            }
           ]
         },
         "sendBody": true,
@@ -95,7 +130,10 @@
       "name": "Claude - Write Post",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1220, 180],
+      "position": [
+        1220,
+        180
+      ],
       "continueOnFail": true,
       "credentials": {
         "anthropicApi": {
@@ -112,7 +150,10 @@
       "name": "Parse + Build Post",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1440, 180]
+      "position": [
+        1440,
+        180
+      ]
     },
     {
       "parameters": {
@@ -124,13 +165,18 @@
         "contentType": "raw",
         "rawContentType": "application/json",
         "body": "={{ JSON.stringify($json) }}",
-        "options": { "timeout": 20000 }
+        "options": {
+          "timeout": 20000
+        }
       },
       "id": "bn-0008-0008-0008-0008-000000000008",
       "name": "POST to Blog Ingest",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1660, 180],
+      "position": [
+        1660,
+        180
+      ],
       "continueOnFail": true,
       "credentials": {
         "httpHeaderAuth": {
@@ -147,45 +193,496 @@
       "name": "Log Skip",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1220, 420]
+      "position": [
+        1220,
+        420
+      ]
+    },
+    {
+      "id": "bn-x-tweet-001",
+      "name": "Post to X",
+      "type": "n8n-nodes-base.twitter",
+      "typeVersion": 2,
+      "position": [
+        1880,
+        180
+      ],
+      "parameters": {
+        "operation": "tweet",
+        "text": "={{ 'BREAKING: ' + $json.posts[0].title + '\n\n'+ 'https://alphaforgeai.io/blog/' + $json.posts[0].slug + '\n\n'+ '#Crypto #Bitcoin #BreakingNews #AlphaForgeAI' }}",
+        "additionalFields": {}
+      },
+      "credentials": {
+        "twitterOAuth2Api": {
+          "id": "4ieYtwKyXyn577YX",
+          "name": "AlphaForgeAI X Account"
+        }
+      },
+      "continueOnFail": true
     }
   ],
   "connections": {
     "Every 30 Minutes": {
-      "main": [[{ "node": "Fetch News Feed", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch News Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch News Feed": {
-      "main": [[{ "node": "Fetch Blog Feed", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Fetch Blog Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Fetch Blog Feed": {
-      "main": [[{ "node": "Evaluate + Gate", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Evaluate + Gate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Evaluate + Gate": {
-      "main": [[{ "node": "Should Post?", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Should Post?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Should Post?": {
       "main": [
-        [{ "node": "Claude - Write Post", "type": "main", "index": 0 }],
-        [{ "node": "Log Skip", "type": "main", "index": 0 }]
+        [
+          {
+            "node": "Claude - Write Post",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Skip",
+            "type": "main",
+            "index": 0
+          }
+        ]
       ]
     },
     "Claude - Write Post": {
-      "main": [[{ "node": "Parse + Build Post", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "Parse + Build Post",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     },
     "Parse + Build Post": {
-      "main": [[{ "node": "POST to Blog Ingest", "type": "main", "index": 0 }]]
+      "main": [
+        [
+          {
+            "node": "POST to Blog Ingest",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "POST to Blog Ingest": {
+      "main": [
+        [
+          {
+            "node": "Post to X",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
     }
   },
-  "pinData": {},
   "settings": {
     "executionOrder": "v1",
     "saveManualExecutions": true,
     "callerPolicy": "workflowsFromSameOwner",
-    "errorWorkflow": ""
+    "errorWorkflow": "",
+    "availableInMCP": false
   },
-  "staticData": null,
-  "tags": ["alphaforgeai", "blog", "breaking-news"],
-  "triggerCount": 0,
-  "updatedAt": "2026-06-07T00:00:00.000Z",
-  "versionId": "breaking-news-v1.0.0"
+  "staticData": {
+    "node:Every 30 Minutes": {
+      "recurrenceRules": []
+    }
+  },
+  "meta": null,
+  "pinData": null,
+  "versionId": "c442474c-f7d2-4e01-9c04-d83c0f9594a2",
+  "activeVersionId": "c442474c-f7d2-4e01-9c04-d83c0f9594a2",
+  "versionCounter": 9,
+  "triggerCount": 1,
+  "shared": [
+    {
+      "updatedAt": "2026-06-07T16:10:31.131Z",
+      "createdAt": "2026-06-07T16:10:31.131Z",
+      "role": "workflow:owner",
+      "workflowId": "2UIRCTvS0nO2XDSz",
+      "projectId": "Hpq6RFprZLmqJoZi",
+      "project": {
+        "updatedAt": "2025-10-24T01:13:40.946Z",
+        "createdAt": "2025-10-24T00:51:32.970Z",
+        "id": "Hpq6RFprZLmqJoZi",
+        "name": "Josh Grace <bgkegger34@gmail.com>",
+        "type": "personal",
+        "icon": null,
+        "description": null,
+        "creatorId": "d19f703f-0161-47c5-8fda-00ff16f8c9d5",
+        "projectRelations": [
+          {
+            "updatedAt": "2025-10-24T00:51:32.970Z",
+            "createdAt": "2025-10-24T00:51:32.970Z",
+            "userId": "d19f703f-0161-47c5-8fda-00ff16f8c9d5",
+            "projectId": "Hpq6RFprZLmqJoZi",
+            "user": {
+              "updatedAt": "2026-06-10T11:21:31.308Z",
+              "createdAt": "2025-10-24T00:51:32.565Z",
+              "id": "d19f703f-0161-47c5-8fda-00ff16f8c9d5",
+              "email": "bgkegger34@gmail.com",
+              "firstName": "Josh",
+              "lastName": "Grace",
+              "personalizationAnswers": null,
+              "settings": {
+                "userActivated": true,
+                "dismissedCallouts": {
+                  "aiAgentStarterCallout": true
+                },
+                "easyAIWorkflowOnboarded": true,
+                "firstSuccessfulWorkflowId": "2RAvHbgAlsKAFAA3",
+                "userActivatedAt": 1761710454034
+              },
+              "disabled": false,
+              "mfaEnabled": false,
+              "lastActiveAt": "2026-06-10",
+              "isPending": false
+            }
+          }
+        ]
+      }
+    }
+  ],
+  "tags": [],
+  "activeVersion": {
+    "updatedAt": "2026-06-07T17:49:34.742Z",
+    "createdAt": "2026-06-07T17:49:34.742Z",
+    "versionId": "c442474c-f7d2-4e01-9c04-d83c0f9594a2",
+    "workflowId": "2UIRCTvS0nO2XDSz",
+    "nodes": [
+      {
+        "parameters": {
+          "rule": {
+            "interval": [
+              {
+                "field": "minutes",
+                "minutesInterval": 30
+              }
+            ]
+          }
+        },
+        "id": "bn-0001-0001-0001-0001-000000000001",
+        "name": "Every 30 Minutes",
+        "type": "n8n-nodes-base.scheduleTrigger",
+        "typeVersion": 1.2,
+        "position": [
+          120,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "url": "https://alphaforgeai.io/api/news",
+          "options": {
+            "timeout": 15000
+          }
+        },
+        "id": "bn-0002-0002-0002-0002-000000000002",
+        "name": "Fetch News Feed",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          340,
+          300
+        ],
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "url": "https://alphaforgeai.io/api/blog",
+          "options": {
+            "timeout": 15000
+          }
+        },
+        "id": "bn-0003-0003-0003-0003-000000000003",
+        "name": "Fetch Blog Feed",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          560,
+          300
+        ],
+        "continueOnFail": true
+      },
+      {
+        "parameters": {
+          "jsCode": "// Phase 2 -- Breaking News Gate\n// Find high-score recent articles not yet covered in blog\n// ES5/ASCII only -- no template literals, no Unicode\n\nvar newsItem = $('Fetch News Feed').item.json;\nvar blogItem = $('Fetch Blog Feed').item.json;\n\nvar now = new Date();\nvar SCORE_THRESHOLD = 8;       // relevance_score >= 8 triggers post\nvar LOOKBACK_HOURS = 4;        // articles must be < 4h old\nvar BLOG_COOLDOWN_HOURS = 3;   // no breaking post if one exists in last 3h\nvar cutoff = new Date(now.getTime() - LOOKBACK_HOURS * 3600000);\nvar blogCutoff = new Date(now.getTime() - BLOG_COOLDOWN_HOURS * 3600000);\n\n// Guard: news feed error\nvar articles = (newsItem && newsItem.articles) ? newsItem.articles : [];\nif (!articles.length) {\n  return [{ json: { shouldPost: false, reason: 'news_feed_empty_or_error' } }];\n}\n\n// Recent high-score articles\nvar candidates = [];\nfor (var i = 0; i < articles.length; i++) {\n  var a = articles[i];\n  var score = a.relevance_score || 0;\n  if (score < SCORE_THRESHOLD) continue;\n  var pub = a.published_at || '';\n  var pubDate = new Date(pub.replace('Z', '+00:00'));\n  if (isNaN(pubDate.getTime())) continue;\n  if (pubDate < cutoff) continue;\n  candidates.push(a);\n}\n\nif (!candidates.length) {\n  return [{ json: { shouldPost: false, reason: 'no_high_score_recent_articles', checked: articles.length } }];\n}\n\n// Sort candidates by score desc\ncandidates.sort(function(x, y) { return (y.relevance_score || 0) - (x.relevance_score || 0); });\n\n// Check blog cooldown -- skip if a breaking post already exists in last 3h\nvar recentPosts = (blogItem && blogItem.posts) ? blogItem.posts : [];\nfor (var j = 0; j < recentPosts.length; j++) {\n  var p = recentPosts[j];\n  var tags = p.tags || [];\n  var pubP = new Date((p.published_at || '').replace('Z', '+00:00'));\n  if (isNaN(pubP.getTime())) continue;\n  if (pubP >= blogCutoff && tags.indexOf('breaking') !== -1) {\n    return [{ json: { shouldPost: false, reason: 'cooldown_active', last_breaking: p.published_at } }];\n  }\n}\n\n// Dedup: skip if article headline keywords already appear in recent blog title\n// Use simple word overlap check on post titles from last 24h\nvar dayAgo = new Date(now.getTime() - 24 * 3600000);\nvar recentTitles = [];\nfor (var k = 0; k < recentPosts.length; k++) {\n  var rp = recentPosts[k];\n  var rpPub = new Date((rp.published_at || '').replace('Z', '+00:00'));\n  if (!isNaN(rpPub.getTime()) && rpPub >= dayAgo) {\n    recentTitles.push((rp.title || '').toLowerCase());\n  }\n}\n\nfunction wordsOf(str) {\n  return str.toLowerCase().split(/[\\s\\W]+/).filter(function(w) { return w.length > 4; });\n}\n\nvar chosen = null;\nfor (var c = 0; c < candidates.length; c++) {\n  var cand = candidates[c];\n  var candWords = wordsOf(cand.title || '');\n  var covered = false;\n  for (var t = 0; t < recentTitles.length; t++) {\n    var matchCount = 0;\n    for (var w = 0; w < candWords.length; w++) {\n      if (recentTitles[t].indexOf(candWords[w]) !== -1) matchCount++;\n    }\n    // If 2+ meaningful words match a recent post title, consider it covered\n    if (matchCount >= 2) { covered = true; break; }\n  }\n  if (!covered) { chosen = cand; break; }\n}\n\nif (!chosen) {\n  return [{ json: { shouldPost: false, reason: 'all_candidates_already_covered', candidates: candidates.length } }];\n}\n\n// Build Claude prompt for breaking news post (350-500 words)\nvar headline = chosen.title || 'Breaking Crypto News';\nvar source = chosen.source || '';\nvar summary = chosen.summary || chosen.title || '';\nvar sentiment = chosen.sentiment || 'neutral';\nvar score = chosen.relevance_score || 0;\nvar url = chosen.url || '';\n\nvar sys = 'You are Alpha Research, the voice of AlphaForgeAI. You write sharp, focused breaking news commentary for the AlphaForgeAI blog. Your audience is active crypto traders. Write with authority. Take a directional stance (Bullish, Bearish, or Neutral) on what this news means for the market. Be direct. Cover WHY this matters, WHAT traders should watch, and WHAT the market reaction means. Do NOT invent prices or data not provided. No financial advice. No buy/sell recommendations. No price targets. Length: 350-500 words. Format in markdown with ## section headers. Sections: ## Breaking: [short punchy subheadline], ## Why This Matters, ## Market Reaction Watch, ## AlphaForgeAI Take. End every post with: This post is for informational purposes only and does not constitute financial advice.';\n\nvar userPrompt = 'Write a breaking news blog post about this story. Headline: ' + headline + '. Source: ' + source + '. Summary: ' + summary + '. Current sentiment signal: ' + sentiment + '. Relevance score: ' + score + '/10. Do not repeat the headline verbatim as the post title -- write a sharp editorial title. Focus on the market implications.';\n\nvar claudeBody = JSON.stringify({\n  model: 'claude-sonnet-4-5',\n  max_tokens: 1200,\n  system: sys,\n  messages: [{ role: 'user', content: userPrompt }]\n});\n\nreturn [{\n  json: {\n    shouldPost: true,\n    article: chosen,\n    claude_body: claudeBody\n  }\n}];"
+        },
+        "id": "bn-0004-0004-0004-0004-000000000004",
+        "name": "Evaluate + Gate",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          780,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "conditions": {
+            "options": {
+              "caseSensitive": true,
+              "leftValue": "",
+              "typeValidation": "strict"
+            },
+            "conditions": [
+              {
+                "id": "gate-cond-001",
+                "leftValue": "={{ $json.shouldPost }}",
+                "rightValue": true,
+                "operator": {
+                  "type": "boolean",
+                  "operation": "equals"
+                }
+              }
+            ],
+            "combinator": "and"
+          },
+          "options": {}
+        },
+        "id": "bn-0005-0005-0005-0005-000000000005",
+        "name": "Should Post?",
+        "type": "n8n-nodes-base.if",
+        "typeVersion": 2,
+        "position": [
+          1000,
+          300
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.anthropic.com/v1/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "anthropicApi",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              }
+            ]
+          },
+          "sendBody": true,
+          "contentType": "raw",
+          "rawContentType": "application/json",
+          "body": "={{ $json.claude_body }}"
+        },
+        "id": "bn-0006-0006-0006-0006-000000000006",
+        "name": "Claude - Write Post",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1220,
+          180
+        ],
+        "continueOnFail": true,
+        "credentials": {
+          "anthropicApi": {
+            "id": "cIkPOAkJ5VBigz0n",
+            "name": "Anthropic account"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Parse Claude response and build blog ingest payload\nvar claudeResp = $input.item.json;\nvar gateData = $('Evaluate + Gate').item.json;\nvar article = gateData.article || {};\n\nvar content = '';\nif (claudeResp.content && claudeResp.content[0] && claudeResp.content[0].text) {\n  content = claudeResp.content[0].text;\n}\n\nif (!content) {\n  return [{ json: { error: 'claude_empty_response', raw: JSON.stringify(claudeResp) } }];\n}\n\n// Extract editorial title from first markdown line\nvar lines = content.split('\\n').filter(function(l) { return l.trim(); });\nvar firstLine = lines[0] || '';\nvar title = firstLine.startsWith('#')\n  ? firstLine.replace(/^#+\\s*/, '').trim()\n  : 'Breaking: ' + (article.title || 'Crypto Alert');\n\n// Generate slug\nvar now = new Date();\nvar dateStr = now.toISOString().split('T')[0];\nvar timeStr = now.toISOString().split('T')[1].substring(0, 5).replace(':', '');\nvar slug = 'breaking-' + dateStr + '-' + timeStr;\n\n// Summary from first non-header line\nvar summary = '';\nfor (var i = 0; i < lines.length; i++) {\n  if (!lines[i].startsWith('#') && lines[i].length > 40) {\n    summary = lines[i].replace(/[*_`]/g, '').substring(0, 200);\n    break;\n  }\n}\nif (!summary) summary = 'Breaking crypto market news from AlphaForgeAI.';\n\n// Extract asset symbols mentioned\nvar assetRegex = /\\b(BTC|ETH|SOL|XRP|BNB|AVAX|DOGE|ADA|DOT|MATIC|LINK|UNI|AAVE|SNX|CRV|COMP|INJ|OP|ARB|SUI|APT|NEAR|FIL|LTC|BCH|SHIB|PEPE|FLOKI|BONK|WIF|POL)\\b/g;\nvar assetMatches = content.match(assetRegex) || [];\nvar assets = [];\nvar seenAssets = {};\nfor (var k = 0; k < assetMatches.length; k++) {\n  if (!seenAssets[assetMatches[k]]) {\n    assets.push(assetMatches[k]);\n    seenAssets[assetMatches[k]] = true;\n  }\n}\nif (!assets.length) assets = ['BTC'];\n\nvar sources = article.url ? [article.url] : [];\n\nreturn [{\n  json: {\n    schema_version: 1,\n    posts: [{\n      slug: slug,\n      title: title,\n      published_at: now.toISOString(),\n      summary: summary,\n      content: content,\n      sources: sources,\n      assets: assets,\n      tags: ['breaking', 'market'],\n      author: 'Alpha Research'\n    }]\n  }\n}];"
+        },
+        "id": "bn-0007-0007-0007-0007-000000000007",
+        "name": "Parse + Build Post",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1440,
+          180
+        ]
+      },
+      {
+        "parameters": {
+          "method": "POST",
+          "url": "https://alphaforgeai.io/api/blog/ingest",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "httpHeaderAuth",
+          "sendBody": true,
+          "contentType": "raw",
+          "rawContentType": "application/json",
+          "body": "={{ JSON.stringify($json) }}",
+          "options": {
+            "timeout": 20000
+          }
+        },
+        "id": "bn-0008-0008-0008-0008-000000000008",
+        "name": "POST to Blog Ingest",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          1660,
+          180
+        ],
+        "continueOnFail": true,
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "MbTtzOWfJRYyBsDz",
+            "name": "AlphaForgeAI Blog Ingest Key"
+          }
+        }
+      },
+      {
+        "parameters": {
+          "jsCode": "// Log skip reason to n8n execution log\nvar d = $input.item.json;\nreturn [{ json: { skipped: true, reason: d.reason || 'unknown', detail: d } }];"
+        },
+        "id": "bn-0009-0009-0009-0009-000000000009",
+        "name": "Log Skip",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          1220,
+          420
+        ]
+      }
+    ],
+    "connections": {
+      "Every 30 Minutes": {
+        "main": [
+          [
+            {
+              "node": "Fetch News Feed",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch News Feed": {
+        "main": [
+          [
+            {
+              "node": "Fetch Blog Feed",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Fetch Blog Feed": {
+        "main": [
+          [
+            {
+              "node": "Evaluate + Gate",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Evaluate + Gate": {
+        "main": [
+          [
+            {
+              "node": "Should Post?",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Should Post?": {
+        "main": [
+          [
+            {
+              "node": "Claude - Write Post",
+              "type": "main",
+              "index": 0
+            }
+          ],
+          [
+            {
+              "node": "Log Skip",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Claude - Write Post": {
+        "main": [
+          [
+            {
+              "node": "Parse + Build Post",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse + Build Post": {
+        "main": [
+          [
+            {
+              "node": "POST to Blog Ingest",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      }
+    },
+    "authors": "Josh Grace",
+    "name": null,
+    "description": null,
+    "autosaved": false,
+    "workflowPublishHistory": [
+      {
+        "createdAt": "2026-06-07T17:49:34.873Z",
+        "id": 57,
+        "workflowId": "2UIRCTvS0nO2XDSz",
+        "versionId": "c442474c-f7d2-4e01-9c04-d83c0f9594a2",
+        "event": "activated",
+        "userId": "d19f703f-0161-47c5-8fda-00ff16f8c9d5"
+      }
+    ]
+  }
 }
