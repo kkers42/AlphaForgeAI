@@ -55,9 +55,59 @@
     </div>
 </section>
 
-<section style="margin-top:48px;padding:20px 24px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--muted);">
+<section class="subscribe-cta" style="margin-top:48px;padding:36px 32px;background:var(--surface);border:1px solid var(--accent);border-radius:var(--radius);text-align:center;">
+    <div style="font-size:11px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:12px;">Early Access</div>
+    <h2 style="font-size:22px;font-weight:700;margin:0 0 10px">Get Alpha Alerts in Your Inbox</h2>
+    <p style="color:var(--muted);font-size:14px;max-width:480px;margin:0 auto 24px">
+        Be first to receive daily market briefs, high-confidence trade signal alerts, and on-chain whale movements — free during early access.
+    </p>
+    <form id="subscribe-form" style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap;">
+        <input
+            type="email"
+            id="subscribe-email"
+            name="email"
+            placeholder="your@email.com"
+            required
+            style="padding:10px 16px;border-radius:var(--radius);border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:14px;width:260px;outline:none;"
+        />
+        <button type="submit" class="btn-primary" style="padding:10px 24px;font-size:14px;">
+            Notify Me
+        </button>
+    </form>
+    <div id="subscribe-msg" style="margin-top:14px;font-size:13px;min-height:20px;"></div>
+    <p style="margin-top:16px;font-size:11px;color:var(--muted);">No spam. Unsubscribe anytime.</p>
+</section>
+
+<section style="margin-top:24px;padding:20px 24px;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);font-size:13px;color:var(--muted);">
     AlphaForgeAI provides market research and quantitative analysis tools.
     Signals and analysis are for informational purposes only and do not constitute financial advice.
     Past signal performance does not guarantee future results.
 </section>
+
+{% block extra_scripts %}{% endblock %}
+<script>
+(function () {
+    const form  = document.getElementById('subscribe-form');
+    const msg   = document.getElementById('subscribe-msg');
+    if (!form) return;
+    form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const email = document.getElementById('subscribe-email').value.trim();
+        msg.textContent = 'Submitting...';
+        msg.style.color = 'var(--muted)';
+        try {
+            const fd = new FormData();
+            fd.append('email', email);
+            const resp = await fetch('/api/subscribe', { method: 'POST', body: fd });
+            const data = await resp.json();
+            msg.textContent = data.message;
+            msg.style.color = data.ok ? 'var(--accent)' : '#e55';
+            if (data.ok) form.reset();
+        } catch {
+            msg.textContent = 'Network error. Please try again.';
+            msg.style.color = '#e55';
+        }
+    });
+})();
+</script>
 {% endblock %}
