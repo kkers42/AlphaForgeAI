@@ -1,5 +1,5 @@
 {
-  "name": "AlphaForgeAI - Whale Alert Engine",
+  "name": "AlphaForgeAI - Whale Alert Engine A (Etherscan)",
   "nodes": [
     {
       "parameters": {
@@ -20,80 +20,107 @@
     },
     {
       "parameters": {
-        "url": "=https://api.whale-alert.io/v1/transactions?api_key={{ $env.WHALE_ALERT_API_KEY }}&min_value=1000000&start={{ Math.floor(Date.now()/1000) - 14400 }}&limit=100",
-        "options": { "timeout": 15000 }
+        "url": "=https://api.etherscan.io/api?module=stats&action=ethprice&apikey={{ $env.ETHERSCAN_API_KEY }}",
+        "options": { "timeout": 10000 }
       },
-      "id": "wa-fetch",
-      "name": "Fetch Whale Transactions",
+      "id": "wa-eth-price",
+      "name": "Fetch ETH Price",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [220, 300],
-      "continueOnFail": true
+      "position": [220, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Parse Whale Alert API response and normalise events\n// ES5/ASCII only\nvar item = $input.item.json;\nvar txns = item.transactions || [];\n\nif (!txns.length) {\n  return [{ json: { hasAlerts: false, reason: 'no_transactions', count: 0, events: [] } }];\n}\n\nvar events = [];\nfor (var i = 0; i < txns.length; i++) {\n  var t = txns[i];\n  // Skip exchange-to-exchange (low market impact)\n  if (t.from.owner_type === 'exchange' && t.to.owner_type === 'exchange') continue;\n\n  var fromType = t.from.owner_type || 'unknown';\n  var toType   = t.to.owner_type   || 'unknown';\n  var fromName = t.from.owner || fromType;\n  var toName   = t.to.owner   || toType;\n  var symbol   = (t.symbol || '').toUpperCase();\n  var amtUsd   = t.amount_usd || 0;\n\n  // Determine alert type\n  var alertType = 'transfer';\n  if (toType === 'exchange')   alertType = 'exchange_inflow';\n  if (fromType === 'exchange') alertType = 'exchange_outflow';\n  if (toType === 'burn')       alertType = 'burn';\n  if (fromType === 'mint' || toType === 'mint') alertType = 'mint';\n\n  // Format USD amount\n  var amtStr;\n  if (amtUsd >= 1e9)      amtStr = '$' + (amtUsd / 1e9).toFixed(1) + 'B';\n  else if (amtUsd >= 1e6) amtStr = '$' + (amtUsd / 1e6).toFixed(1) + 'M';\n  else                    amtStr = '$' + Math.round(amtUsd).toLocaleString();\n\n  // Format token amount\n  var amt = t.amount || 0;\n  var amtFmt;\n  if (amt >= 1e9)      amtFmt = (amt / 1e9).toFixed(2) + 'B';\n  else if (amt >= 1e6) amtFmt = (amt / 1e6).toFixed(2) + 'M';\n  else if (amt >= 1e3) amtFmt = (amt / 1e3).toFixed(1) + 'K';\n  else                 amtFmt = String(Math.round(amt));\n\n  // Build human-readable description\n  var desc = amtFmt + ' ' + symbol + ' (' + amtStr + ') moved from ' + fromName + ' to ' + toName;\n\n  // Market impact assessment\n  var impact = 'neutral';\n  if (alertType === 'exchange_inflow')\n    impact = amtUsd >= 10e6 ? 'bearish' : 'neutral';\n  if (alertType === 'exchange_outflow')\n    impact = amtUsd >= 10e6 ? 'bullish' : 'neutral';\n\n  events.push({\n    transaction_hash: t.hash || '',\n    blockchain:       t.blockchain || '',\n    symbol:           symbol,\n    amount:           amt,\n    amount_usd:       amtUsd,\n    amount_formatted: amtFmt,\n    amount_usd_formatted: amtStr,\n    from_owner_type:  fromType,\n    from_owner:       fromName,\n    to_owner_type:    toType,\n    to_owner:         toName,\n    alert_type:       alertType,\n    description:      desc,\n    impact:           impact,\n    timestamp:        new Date((t.timestamp || 0) * 1000).toISOString(),\n    url:              'https://whale-alert.io/transaction/' + (t.blockchain || '') + '/' + (t.hash || '')\n  });\n}\n\n// Sort by amount_usd desc\nevents.sort(function(a, b) { return b.amount_usd - a.amount_usd; });\n\nreturn [{ json: { hasAlerts: events.length > 0, count: events.length, events: events } }];\n"
+        "url": "=https://api.etherscan.io/api?module=account&action=txlist&address=0xa090e606e30bd747d4e6245a1517ebe430f0057e&sort=desc&page=1&offset=100&apikey={{ $env.ETHERSCAN_API_KEY }}",
+        "options": { "timeout": 15000 }
       },
-      "id": "wa-parse",
-      "name": "Parse + Normalise Transactions",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
+      "id": "wa-coinbase",
+      "name": "Fetch Coinbase Txns",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [440, 300]
     },
     {
       "parameters": {
-        "conditions": {
-          "options": { "caseSensitive": true, "leftValue": "", "typeValidation": "strict" },
-          "conditions": [
-            {
-              "id": "cond-has-alerts",
-              "leftValue": "={{ $json.hasAlerts }}",
-              "rightValue": true,
-              "operator": { "type": "boolean", "operation": "equals" }
-            }
-          ],
-          "combinator": "and"
-        }
+        "url": "=https://api.etherscan.io/api?module=account&action=txlist&address=0x28C6c06298d514Db089934071355E5743bf21d60&sort=desc&page=1&offset=100&apikey={{ $env.ETHERSCAN_API_KEY }}",
+        "options": { "timeout": 15000 }
       },
-      "id": "wa-gate",
-      "name": "Has Alerts?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
+      "id": "wa-binance",
+      "name": "Fetch Binance Txns",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [660, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Build ingest payload and X tweet for the top alert\nvar data = $input.item.json;\nvar events = data.events || [];\n\n// POST payload to AlphaForgeAI ingest\nvar payload = JSON.stringify({ schema_version: 1, events: events });\n\n// Pick top alert for X post (largest by USD value)\nvar top = events[0];\nvar EMOJI = { bullish: '\\uD83D\\uDCC8', bearish: '\\uD83D\\uDCC9', neutral: '\\u26AA' };\nvar emoji = EMOJI[top.impact] || EMOJI.neutral;\n\n// Format tweet\nvar impactLabel = top.impact.charAt(0).toUpperCase() + top.impact.slice(1);\nvar tweet = '\\uD83D\\uDC33 Whale Alert\\n' +\n  emoji + ' ' + top.description + '\\n\\n' +\n  'Alert type: ' + top.alert_type.replace(/_/g, ' ') + '\\n' +\n  'Market signal: ' + impactLabel + '\\n\\n' +\n  top.url + '\\n\\n' +\n  '$' + top.symbol + ' #WhaleAlert #crypto #AlphaForgeAI';\n\n// Trim to 280 chars\nif (tweet.length > 280) tweet = tweet.substring(0, 277) + '...';\n\nreturn [{ json: { ingest_payload: payload, tweet: tweet, top_alert: top, total: events.length } }];\n"
+        "url": "=https://api.etherscan.io/api?module=account&action=txlist&address=0x2910543Af39abA0Cd09dBb2D50200b3E800A63D2&sort=desc&page=1&offset=100&apikey={{ $env.ETHERSCAN_API_KEY }}",
+        "options": { "timeout": 15000 }
       },
-      "id": "wa-build",
-      "name": "Build Ingest Payload + Tweet",
+      "id": "wa-kraken",
+      "name": "Fetch Kraken Txns",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [880, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "const cutoff = Math.floor(Date.now() / 1000) - 14400;\nconst priceResult = $node['Fetch ETH Price'].json.result || {};\nconst ethPrice = parseFloat(priceResult.ethusd || '3000');\n\nconst wallets = [\n  { name: 'Coinbase', data: $node['Fetch Coinbase Txns'].json },\n  { name: 'Binance',  data: $node['Fetch Binance Txns'].json },\n  { name: 'Kraken',   data: $node['Fetch Kraken Txns'].json },\n];\n\nconst events = [];\nconst seen = new Set();\n\nfor (const wallet of wallets) {\n  const txns = Array.isArray(wallet.data.result) ? wallet.data.result : [];\n  for (const tx of txns) {\n    const ts = parseInt(tx.timeStamp, 10);\n    if (ts < cutoff) continue;\n    if (tx.isError === '1') continue;\n    if (seen.has(tx.hash)) continue;\n    seen.add(tx.hash);\n    const amountEth = parseFloat(tx.value) / 1e18;\n    const amountUsd = amountEth * ethPrice;\n    if (amountUsd < 1000000) continue;\n    events.push({\n      transaction_hash: tx.hash,\n      symbol: 'ETH',\n      amount: amountEth,\n      amount_usd: Math.round(amountUsd),\n      timestamp: new Date(ts * 1000).toISOString(),\n      from_owner_type: 'exchange',\n      to_owner_type: 'unknown',\n      blockchain: 'ethereum',\n      from_address: tx.from,\n      to_address: tx.to,\n      alert_type: 'large_transfer',\n      url: 'https://etherscan.io/tx/' + tx.hash,\n      source_wallet: wallet.name,\n    });\n  }\n}\n\nevents.sort((a, b) => b.amount_usd - a.amount_usd);\n\nreturn [{ json: { schema_version: 1, events, count: events.length, eth_price: ethPrice } }];"
+      },
+      "id": "wa-merge",
+      "name": "Merge & Filter Events",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [880, 200]
+      "position": [1100, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.count }}",
+              "operation": "larger",
+              "value2": 0
+            }
+          ]
+        }
+      },
+      "id": "wa-if",
+      "name": "Has Alerts?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1320, 300]
     },
     {
       "parameters": {
         "method": "POST",
         "url": "https://alphaforgeai.io/api/whale-alerts/ingest",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.WHALE_INGEST_KEY }}" }
+          ]
+        },
         "sendBody": true,
         "contentType": "raw",
-        "body": "={{ $json.ingest_payload }}",
         "rawContentType": "application/json",
-        "options": { "response": { "response": { "fullResponse": true } } }
+        "body": "={{ JSON.stringify($json) }}",
+        "options": { "timeout": 15000 }
       },
       "id": "wa-ingest",
       "name": "POST to AlphaForgeAI",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1100, 100],
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "whale-alerts-ingest-key",
-          "name": "AlphaForgeAI Whale Alerts Ingest Key"
-        }
-      }
+      "position": [1540, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "const events = $json.events || [];\nconst top = events[0];\nconst usd = top.amount_usd >= 1000000000\n  ? '$' + (top.amount_usd / 1e9).toFixed(1) + 'B'\n  : '$' + (top.amount_usd / 1e6).toFixed(1) + 'M';\nconst eth = top.amount.toFixed(0);\nconst tweet = `WHALE ALERT\\n${eth} ETH (${usd}) moved from ${top.source_wallet} hot wallet\\n\\n${top.url}\\n\\n#Ethereum #ETH #CryptoWhales #AlphaForgeAI`;\nreturn [{ json: { tweet, event: top } }];"
+      },
+      "id": "wa-fmt-tweet",
+      "name": "Format Tweet",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1760, 200]
     },
     {
       "parameters": {
@@ -104,7 +131,7 @@
       "name": "Post to X",
       "type": "n8n-nodes-base.twitter",
       "typeVersion": 1,
-      "position": [1100, 300],
+      "position": [1980, 200],
       "credentials": {
         "twitterOAuth1Api": {
           "id": "WPpWGXWXaAS8H8ng",
@@ -114,45 +141,49 @@
     },
     {
       "parameters": {
-        "jsCode": "var item = $input.item.json;\nreturn [{ json: { skipped: true, reason: item.reason || 'no_qualifying_transactions', ts: new Date().toISOString() } }];\n"
+        "jsCode": "console.log('Whale engine: no large transfers in last 4h (' + new Date().toISOString() + ')');\nreturn [];"
       },
       "id": "wa-skip",
       "name": "Log Skip",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [880, 400]
+      "position": [1540, 400]
     }
   ],
   "connections": {
     "Every 4 Hours": {
-      "main": [[{ "node": "Fetch Whale Transactions", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Fetch ETH Price", "type": "main", "index": 0 }]]
     },
-    "Fetch Whale Transactions": {
-      "main": [[{ "node": "Parse + Normalise Transactions", "type": "main", "index": 0 }]]
+    "Fetch ETH Price": {
+      "main": [[{ "node": "Fetch Coinbase Txns", "type": "main", "index": 0 }]]
     },
-    "Parse + Normalise Transactions": {
+    "Fetch Coinbase Txns": {
+      "main": [[{ "node": "Fetch Binance Txns", "type": "main", "index": 0 }]]
+    },
+    "Fetch Binance Txns": {
+      "main": [[{ "node": "Fetch Kraken Txns", "type": "main", "index": 0 }]]
+    },
+    "Fetch Kraken Txns": {
+      "main": [[{ "node": "Merge & Filter Events", "type": "main", "index": 0 }]]
+    },
+    "Merge & Filter Events": {
       "main": [[{ "node": "Has Alerts?", "type": "main", "index": 0 }]]
     },
     "Has Alerts?": {
       "main": [
-        [{ "node": "Build Ingest Payload + Tweet", "type": "main", "index": 0 }],
+        [{ "node": "POST to AlphaForgeAI", "type": "main", "index": 0 }],
         [{ "node": "Log Skip", "type": "main", "index": 0 }]
       ]
     },
-    "Build Ingest Payload + Tweet": {
-      "main": [[
-        { "node": "POST to AlphaForgeAI", "type": "main", "index": 0 },
-        { "node": "Post to X", "type": "main", "index": 0 }
-      ]]
+    "POST to AlphaForgeAI": {
+      "main": [[{ "node": "Format Tweet", "type": "main", "index": 0 }]]
+    },
+    "Format Tweet": {
+      "main": [[{ "node": "Post to X", "type": "main", "index": 0 }]]
     }
   },
   "settings": {
     "executionOrder": "v1",
-    "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
-  },
-  "staticData": null,
-  "meta": null,
-  "pinData": null,
-  "tags": []
+    "timezone": "America/New_York"
+  }
 }
