@@ -1,205 +1,262 @@
-{
-  "name": "AlphaForgeAI - Daily Blog Writer",
-  "nodes": [
-    {
-      "id": "node-webhook",
-      "name": "Webhook Trigger",
-      "type": "n8n-nodes-base.webhook",
-      "typeVersion": 2,
-      "position": [
-        0,
-        0
-      ],
-      "parameters": {
-        "path": "alphaforgeai-blog-writer",
-        "httpMethod": "POST",
-        "responseMode": "onReceived"
+[
+  {
+    "updatedAt": "2026-06-11T21:25:14.476Z",
+    "createdAt": "2026-06-05T16:18:59.532Z",
+    "id": "HnYfCc7VuOPXumY6",
+    "name": "AlphaForgeAI - Daily Blog Writer",
+    "description": null,
+    "active": true,
+    "isArchived": false,
+    "nodes": [
+      {
+        "id": "node-webhook",
+        "name": "Webhook Trigger",
+        "type": "n8n-nodes-base.webhook",
+        "typeVersion": 2,
+        "position": [
+          0,
+          0
+        ],
+        "parameters": {
+          "path": "alphaforgeai-blog-writer",
+          "httpMethod": "POST",
+          "responseMode": "onReceived"
+        },
+        "webhookId": "alphaforgeai-blog-writer"
       },
-      "webhookId": "alphaforgeai-blog-writer"
-    },
-    {
-      "id": "node-code-prompt",
-      "name": "Build Claude Prompt",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        200,
-        0
-      ],
-      "parameters": {
-        "jsCode": "var data = $input.item.json.body || $input.item.json;\nvar date = data.date || new Date().toISOString().split('T')[0];\nvar sources = (data.news_headlines || []).map(function(h) { return h.url; }).filter(Boolean);\nvar markets = (data.top_markets || []).map(function(m) { return m.symbol + ': $' + (m.price || 0).toLocaleString() + ' (' + (m.change_24h > 0 ? '+' : '') + (m.change_24h || 0).toFixed(2) + '% 24h)'; }).join(', ');\nvar trending = (data.trending_coins || []).map(function(c) { return c.name + ' (' + c.symbol + ')'; }).join(', ');\nvar reddit = (data.reddit_top_posts || []).slice(0,5).map(function(p) { return p.title; }).join('; ');\nvar headlines = (data.news_headlines || []).slice(0,8).map(function(h) { return h.title; }).join('; ');\nvar mcap = (data.market_summary && data.market_summary.total_market_cap_usd) ? '$' + (data.market_summary.total_market_cap_usd / 1e12).toFixed(2) + 'T' : 'N/A';\nvar btcDom = (data.market_summary && data.market_summary.btc_dominance) ? data.market_summary.btc_dominance.toFixed(1) + '%' : 'N/A';\nvar chg = (data.market_summary && data.market_summary.market_cap_change_24h_pct) ? data.market_summary.market_cap_change_24h_pct.toFixed(2) + '%' : 'N/A';\nvar prompt = 'Date: ' + date + '. Total market cap: ' + mcap + '. BTC dominance: ' + btcDom + '. 24h change: ' + chg + '. Top assets: ' + markets + '. Trending: ' + trending + '. Reddit discussions: ' + reddit + '. Headlines: ' + headlines + '. Write the daily brief for ' + date + '.';\nvar sys = 'You are Alpha Research, the voice of AlphaForgeAI. You are a battle-tested crypto market analyst who was mining Bitcoin before Mt. Gox went down. You are a long-term Bitcoin Maximalist. BTC is the reserve asset. It is never going to zero. If a Bitcoin death article or crypto obituary appears in the provided headlines, you may discredit it with facts or a dry remark -- but only if it is actually in the data. Do not bring it up otherwise. Your audience is traders -- from beginners learning the ropes to experienced participants. Be accessible but substantive. Explain jargon briefly when you use it. Take directional positions. State clearly early in the post whether the overall market is Bullish, Bearish, or Neutral -- and tell the story of why. Cover: BTC and ETH always. Macro (Fed, CPI, DXY) always. Regulatory news always. Signal assets when relevant: BTC, ETH, SOL, XRP, AVAX, DOT, NEAR, UNI, AAVE, COMP, SNX, CRV, LTC, BCH, ARB, OP, SUI, APT, INJ, POL, FIL, SHIB, PEPE, FLOKI, BONK, WIF. Top memecoins and top 25 altcoins by market cap when they have meaningful moves. Use ONLY the data provided -- do not invent prices, percentages, or news events. No financial advice. No buy/sell recommendations. No price targets. Length 500-800 words. Write in markdown with ## section headers. Sections: ## Market Overview (state Bullish/Bearish/Neutral here), ## What Is Moving, ## Key Stories, ## Closing Note. End every post with: This post is for informational purposes only and does not constitute financial advice.';\nvar body = JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 2000, system: sys, messages: [{ role: 'user', content: prompt }] });\nreturn [{ json: { date: date, sources: sources, claude_body: body } }];"
+      {
+        "id": "node-code-prompt",
+        "name": "Build Claude Prompt",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          200,
+          0
+        ],
+        "parameters": {
+          "jsCode": "var data = $input.item.json.body || $input.item.json;\nvar date = data.date || new Date().toISOString().split('T')[0];\nvar sources = (data.news_headlines || []).map(function(h) { return h.url; }).filter(Boolean);\nvar markets = (data.top_markets || []).map(function(m) { return m.symbol + ': $' + (m.price || 0).toLocaleString() + ' (' + (m.change_24h > 0 ? '+' : '') + (m.change_24h || 0).toFixed(2) + '% 24h)'; }).join(', ');\nvar trending = (data.trending_coins || []).map(function(c) { return c.name + ' (' + c.symbol + ')'; }).join(', ');\nvar reddit = (data.reddit_top_posts || []).slice(0,5).map(function(p) { return p.title; }).join('; ');\nvar headlines = (data.news_headlines || []).slice(0,8).map(function(h) { return h.title; }).join('; ');\nvar mcap = (data.market_summary && data.market_summary.total_market_cap_usd) ? '$' + (data.market_summary.total_market_cap_usd / 1e12).toFixed(2) + 'T' : 'N/A';\nvar btcDom = (data.market_summary && data.market_summary.btc_dominance) ? data.market_summary.btc_dominance.toFixed(1) + '%' : 'N/A';\nvar chg = (data.market_summary && data.market_summary.market_cap_change_24h_pct) ? data.market_summary.market_cap_change_24h_pct.toFixed(2) + '%' : 'N/A';\nvar prompt = 'Date: ' + date + '. Total market cap: ' + mcap + '. BTC dominance: ' + btcDom + '. 24h change: ' + chg + '. Top assets: ' + markets + '. Trending: ' + trending + '. Reddit discussions: ' + reddit + '. Headlines: ' + headlines + '. Write the daily brief for ' + date + '.';\nvar sys = 'You are Alpha Research, the voice of AlphaForgeAI. You are a battle-tested crypto market analyst who was mining Bitcoin before Mt. Gox went down. You are a long-term Bitcoin Maximalist. BTC is the reserve asset. It is never going to zero. If a Bitcoin death article or crypto obituary appears in the provided headlines, you may discredit it with facts or a dry remark -- but only if it is actually in the data. Do not bring it up otherwise. Your audience is traders -- from beginners learning the ropes to experienced participants. Be accessible but substantive. Explain jargon briefly when you use it. Take directional positions. State clearly early in the post whether the overall market is Bullish, Bearish, or Neutral -- and tell the story of why. Cover: BTC and ETH always. Macro (Fed, CPI, DXY) always. Regulatory news always. Signal assets when relevant: BTC, ETH, SOL, XRP, AVAX, DOT, NEAR, UNI, AAVE, COMP, SNX, CRV, LTC, BCH, ARB, OP, SUI, APT, INJ, POL, FIL, SHIB, PEPE, FLOKI, BONK, WIF. Top memecoins and top 25 altcoins by market cap when they have meaningful moves. Use ONLY the data provided -- do not invent prices, percentages, or news events. No financial advice. No buy/sell recommendations. No price targets. Length 500-800 words. Write in markdown with ## section headers. Sections: ## Market Overview (state Bullish/Bearish/Neutral here), ## What Is Moving, ## Key Stories, ## Closing Note. End every post with: This post is for informational purposes only and does not constitute financial advice.';\nvar body = JSON.stringify({ model: 'claude-sonnet-4-5', max_tokens: 2000, system: sys, messages: [{ role: 'user', content: prompt }] });\nreturn [{ json: { date: date, sources: sources, claude_body: body } }];"
+        }
+      },
+      {
+        "id": "node-claude",
+        "name": "Claude API",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          400,
+          0
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "https://api.anthropic.com/v1/messages",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "anthropicApi",
+          "sendHeaders": true,
+          "headerParameters": {
+            "parameters": [
+              {
+                "name": "anthropic-version",
+                "value": "2023-06-01"
+              }
+            ]
+          },
+          "sendBody": true,
+          "contentType": "raw",
+          "rawContentType": "application/json",
+          "body": "={{ $json.claude_body }}"
+        },
+        "credentials": {
+          "anthropicApi": {
+            "id": "cIkPOAkJ5VBigz0n",
+            "name": "Anthropic account"
+          }
+        }
+      },
+      {
+        "id": "node-code-parse",
+        "name": "Parse Response + Build Post",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [
+          600,
+          0
+        ],
+        "parameters": {
+          "jsCode": "const claudeResp = $input.item.json;\nconst content = claudeResp.content?.[0]?.text || '';\nconst prev = $('Build Claude Prompt').item.json;\nconst date = prev.date;\n\nconst lines = content.split('\\n').filter(l => l.trim());\nconst firstLine = lines[0] || '';\nconst title = firstLine.startsWith('#')\n  ? firstLine.replace(/^#+\\s*/, '').trim()\n  : `Crypto Daily Brief \\u2014 ${date}`;\n\nconst slug = 'crypto-daily-brief-' + date;\n\nconst summary = lines.find(l => !l.startsWith('#') && l.length > 50) || 'Daily crypto market analysis.';\n\nconst assetRegex = /\\b(BTC|ETH|SOL|XRP|BNB|AVAX|DOGE|ADA|DOT|MATIC|LINK|UNI|AAVE|SNX|CRV|COMP|INJ|OP|ARB|SUI|APT|NEAR|FIL|LTC|BCH|SHIB|PEPE|FLOKI|BONK|WIF|POL)\\b/g;\nconst assets = [...new Set(content.match(assetRegex) || ['BTC'])];\n\nreturn [{\n  json: {\n    schema_version: 1,\n    posts: [{\n      slug,\n      title,\n      published_at: new Date().toISOString(),\n      summary: summary.slice(0, 200),\n      content,\n      sources: prev.sources || [],\n      assets,\n      tags: ['daily-brief', 'market'],\n      author: 'Alpha Research'\n    }]\n  }\n}];"
+        }
+      },
+      {
+        "id": "node-ingest",
+        "name": "POST to Blog Ingest",
+        "type": "n8n-nodes-base.httpRequest",
+        "typeVersion": 4.2,
+        "position": [
+          800,
+          0
+        ],
+        "parameters": {
+          "method": "POST",
+          "url": "https://alphaforgeai.io/api/blog/ingest",
+          "authentication": "predefinedCredentialType",
+          "nodeCredentialType": "httpHeaderAuth",
+          "sendBody": true,
+          "contentType": "raw",
+          "rawContentType": "application/json",
+          "body": "={{ JSON.stringify($json) }}",
+          "options": {}
+        },
+        "credentials": {
+          "httpHeaderAuth": {
+            "id": "MbTtzOWfJRYyBsDz",
+            "name": "AlphaForgeAI Blog Ingest Key"
+          }
+        }
+      },
+      {
+        "id": "node-log",
+        "name": "Log Result",
+        "type": "n8n-nodes-base.set",
+        "typeVersion": 3.4,
+        "position": [
+          1000,
+          0
+        ],
+        "parameters": {
+          "mode": "manual",
+          "assignments": {
+            "assignments": [
+              {
+                "id": "1",
+                "name": "status",
+                "value": "={{ $json.status || 'done' }}",
+                "type": "string"
+              },
+              {
+                "id": "2",
+                "name": "ingest_response",
+                "value": "={{ JSON.stringify($json) }}",
+                "type": "string"
+              }
+            ]
+          }
+        }
+      },
+      {
+        "id": "node-x-tweet-writer",
+        "name": "Post to X",
+        "type": "n8n-nodes-base.twitter",
+        "typeVersion": 2,
+        "position": [
+          1000,
+          0
+        ],
+        "parameters": {
+          "operation": "tweet",
+          "text": "={{ (function() { var posts = $json.posts; var post = posts && posts[0] ? posts[0] : {}; var content = post.content || \"\"; var m = content.match(/\\*\\*(Bullish|Bearish|Neutral)\\*\\*/); var prefix = (m && m[1]) ? m[1] + \": \" : \"\"; var title = post.title || \"\"; var slug = post.slug || \"\"; return prefix + title + \"\n\nFull brief: https://alphaforgeai.io/blog/\" + slug + \"\n\n#Bitcoin #Crypto #AlphaForgeAI\"; })() }}",
+          "additionalFields": {}
+        },
+        "credentials": {
+          "twitterOAuth1Api": {
+            "id": "WPpWGXWXaAS8H8ng",
+            "name": "X OAuth account"
+          }
+        },
+        "continueOnFail": true
       }
-    },
-    {
-      "id": "node-claude",
-      "name": "Claude API",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        400,
-        0
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "https://api.anthropic.com/v1/messages",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "anthropicApi",
-        "sendHeaders": true,
-        "headerParameters": {
-          "parameters": [
+    ],
+    "connections": {
+      "Webhook Trigger": {
+        "main": [
+          [
             {
-              "name": "anthropic-version",
-              "value": "2023-06-01"
+              "node": "Build Claude Prompt",
+              "type": "main",
+              "index": 0
             }
           ]
-        },
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ $json.claude_body }}"
+        ]
       },
-      "credentials": {
-        "anthropicApi": {
-          "id": "cIkPOAkJ5VBigz0n",
-          "name": "Anthropic account"
-        }
-      }
-    },
-    {
-      "id": "node-code-parse",
-      "name": "Parse Response + Build Post",
-      "type": "n8n-nodes-base.code",
-      "typeVersion": 2,
-      "position": [
-        600,
-        0
-      ],
-      "parameters": {
-        "jsCode": "const claudeResp = $input.item.json;\nconst content = claudeResp.content?.[0]?.text || '';\nconst prev = $('Build Claude Prompt').item.json;\nconst date = prev.date;\n\nconst lines = content.split('\\n').filter(l => l.trim());\nconst firstLine = lines[0] || '';\nconst title = firstLine.startsWith('#')\n  ? firstLine.replace(/^#+\\s*/, '').trim()\n  : `Crypto Daily Brief \\u2014 ${date}`;\n\nconst slug = 'crypto-daily-brief-' + date;\n\nconst summary = lines.find(l => !l.startsWith('#') && l.length > 50) || 'Daily crypto market analysis.';\n\nconst assetRegex = /\\b(BTC|ETH|SOL|XRP|BNB|AVAX|DOGE|ADA|DOT|MATIC|LINK|UNI|AAVE|SNX|CRV|COMP|INJ|OP|ARB|SUI|APT|NEAR|FIL|LTC|BCH|SHIB|PEPE|FLOKI|BONK|WIF|POL)\\b/g;\nconst assets = [...new Set(content.match(assetRegex) || ['BTC'])];\n\nreturn [{\n  json: {\n    schema_version: 1,\n    posts: [{\n      slug,\n      title,\n      published_at: new Date().toISOString(),\n      summary: summary.slice(0, 200),\n      content,\n      sources: prev.sources || [],\n      assets,\n      tags: ['daily-brief', 'market'],\n      author: 'Alpha Research'\n    }]\n  }\n}];"
-      }
-    },
-    {
-      "id": "node-ingest",
-      "name": "POST to Blog Ingest",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        800,
-        0
-      ],
-      "parameters": {
-        "method": "POST",
-        "url": "https://alphaforgeai.io/api/blog/ingest",
-        "authentication": "predefinedCredentialType",
-        "nodeCredentialType": "httpHeaderAuth",
-        "sendBody": true,
-        "contentType": "raw",
-        "rawContentType": "application/json",
-        "body": "={{ JSON.stringify($json) }}",
-        "options": {}
-      },
-      "credentials": {
-        "httpHeaderAuth": {
-          "id": "MbTtzOWfJRYyBsDz",
-          "name": "AlphaForgeAI Blog Ingest Key"
-        }
-      }
-    },
-    {
-      "id": "node-log",
-      "name": "Log Result",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.4,
-      "position": [
-        1000,
-        0
-      ],
-      "parameters": {
-        "mode": "manual",
-        "assignments": {
-          "assignments": [
+      "Build Claude Prompt": {
+        "main": [
+          [
             {
-              "id": "1",
-              "name": "status",
-              "value": "={{ $json.status || 'done' }}",
-              "type": "string"
+              "node": "Claude API",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Claude API": {
+        "main": [
+          [
+            {
+              "node": "Parse Response + Build Post",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "Parse Response + Build Post": {
+        "main": [
+          [
+            {
+              "node": "POST to Blog Ingest",
+              "type": "main",
+              "index": 0
+            }
+          ]
+        ]
+      },
+      "POST to Blog Ingest": {
+        "main": [
+          [
+            {
+              "node": "Log Result",
+              "type": "main",
+              "index": 0
             },
             {
-              "id": "2",
-              "name": "ingest_response",
-              "value": "={{ JSON.stringify($json) }}",
-              "type": "string"
+              "node": "Post to X",
+              "type": "main",
+              "index": 0
             }
           ]
+        ]
+      }
+    },
+    "settings": {
+      "executionOrder": "v1",
+      "callerPolicy": "workflowsFromSameOwner",
+      "availableInMCP": false
+    },
+    "staticData": null,
+    "meta": null,
+    "pinData": null,
+    "versionId": "57956f5c-f7ad-45c9-af71-3698204ea072",
+    "activeVersionId": "57956f5c-f7ad-45c9-af71-3698204ea072",
+    "versionCounter": 40,
+    "triggerCount": 1,
+    "tags": [],
+    "shared": [
+      {
+        "updatedAt": "2026-06-05T16:18:59.532Z",
+        "createdAt": "2026-06-05T16:18:59.532Z",
+        "role": "workflow:owner",
+        "workflowId": "HnYfCc7VuOPXumY6",
+        "projectId": "Hpq6RFprZLmqJoZi",
+        "project": {
+          "updatedAt": "2025-10-24T01:13:40.946Z",
+          "createdAt": "2025-10-24T00:51:32.970Z",
+          "id": "Hpq6RFprZLmqJoZi",
+          "name": "Josh Grace <bgkegger34@gmail.com>",
+          "type": "personal",
+          "icon": null,
+          "description": null,
+          "creatorId": "d19f703f-0161-47c5-8fda-00ff16f8c9d5"
         }
       }
-    }
-  ],
-  "connections": {
-    "Webhook Trigger": {
-      "main": [
-        [
-          {
-            "node": "Build Claude Prompt",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Build Claude Prompt": {
-      "main": [
-        [
-          {
-            "node": "Claude API",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Claude API": {
-      "main": [
-        [
-          {
-            "node": "Parse Response + Build Post",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Parse Response + Build Post": {
-      "main": [
-        [
-          {
-            "node": "POST to Blog Ingest",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "POST to Blog Ingest": {
-      "main": [
-        [
-          {
-            "node": "Log Result",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    }
-  },
-  "settings": {
-    "executionOrder": "v1",
-    "callerPolicy": "workflowsFromSameOwner",
-    "availableInMCP": false
-  },
-  "meta": {
-    "description": "AlphaForgeAI daily blog writer -- AlphaForgeAI voice, Claude Sonnet",
-    "version": "2.2.0",
-    "updated": "2026-06-06"
+    ]
   }
-}
+]
