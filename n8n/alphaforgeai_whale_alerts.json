@@ -1,5 +1,5 @@
 {
-  "name": "AlphaForgeAI - Whale Alert Engine A (Etherscan)",
+  "name": "AlphaForgeAI - Whale Alert Engine A (Etherscan V2)",
   "nodes": [
     {
       "parameters": {
@@ -20,7 +20,7 @@
     },
     {
       "parameters": {
-        "url": "=https://api.etherscan.io/api?module=stats&action=ethprice&apikey={{ $env.ETHERSCAN_API_KEY }}",
+        "url": "=https://api.etherscan.io/v2/api?chainid=1&module=stats&action=ethprice&apikey={{ $env.ETHERSCAN_API_KEY }}",
         "options": { "timeout": 10000 }
       },
       "id": "wa-eth-price",
@@ -31,46 +31,79 @@
     },
     {
       "parameters": {
-        "url": "=https://api.etherscan.io/api?module=account&action=txlist&address=0xa090e606e30bd747d4e6245a1517ebe430f0057e&sort=desc&page=1&offset=100&apikey={{ $env.ETHERSCAN_API_KEY }}",
+        "url": "=https://api.etherscan.io/v2/api?chainid=1&module=account&action=txlist&address=0xa090e606e30bd747d4e6245a1517ebe430f0057e&sort=desc&page=1&offset=200&apikey={{ $env.ETHERSCAN_API_KEY }}",
         "options": { "timeout": 15000 }
       },
-      "id": "wa-coinbase",
-      "name": "Fetch Coinbase Txns",
+      "id": "wa-coinbase-eth",
+      "name": "Fetch Coinbase ETH Txns",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 160]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.etherscan.io/v2/api?chainid=1&module=account&action=txlist&address=0x28C6c06298d514Db089934071355E5743bf21d60&sort=desc&page=1&offset=200&apikey={{ $env.ETHERSCAN_API_KEY }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "wa-binance-eth",
+      "name": "Fetch Binance ETH Txns",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [440, 300]
     },
     {
       "parameters": {
-        "url": "=https://api.etherscan.io/api?module=account&action=txlist&address=0x28C6c06298d514Db089934071355E5743bf21d60&sort=desc&page=1&offset=100&apikey={{ $env.ETHERSCAN_API_KEY }}",
+        "url": "=https://api.etherscan.io/v2/api?chainid=1&module=account&action=txlist&address=0x2910543Af39abA0Cd09dBb2D50200b3E800A63D2&sort=desc&page=1&offset=200&apikey={{ $env.ETHERSCAN_API_KEY }}",
         "options": { "timeout": 15000 }
       },
-      "id": "wa-binance",
-      "name": "Fetch Binance Txns",
+      "id": "wa-kraken-eth",
+      "name": "Fetch Kraken ETH Txns",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [440, 440]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.etherscan.io/v2/api?chainid=1&module=account&action=tokentx&address=0xa090e606e30bd747d4e6245a1517ebe430f0057e&sort=desc&page=1&offset=200&apikey={{ $env.ETHERSCAN_API_KEY }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "wa-coinbase-tokens",
+      "name": "Fetch Coinbase Token Txns",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 160]
+    },
+    {
+      "parameters": {
+        "url": "=https://api.etherscan.io/v2/api?chainid=1&module=account&action=tokentx&address=0x28C6c06298d514Db089934071355E5743bf21d60&sort=desc&page=1&offset=200&apikey={{ $env.ETHERSCAN_API_KEY }}",
+        "options": { "timeout": 15000 }
+      },
+      "id": "wa-binance-tokens",
+      "name": "Fetch Binance Token Txns",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [660, 300]
     },
     {
       "parameters": {
-        "url": "=https://api.etherscan.io/api?module=account&action=txlist&address=0x2910543Af39abA0Cd09dBb2D50200b3E800A63D2&sort=desc&page=1&offset=100&apikey={{ $env.ETHERSCAN_API_KEY }}",
+        "url": "=https://api.etherscan.io/v2/api?chainid=1&module=account&action=tokentx&address=0x2910543Af39abA0Cd09dBb2D50200b3E800A63D2&sort=desc&page=1&offset=200&apikey={{ $env.ETHERSCAN_API_KEY }}",
         "options": { "timeout": 15000 }
       },
-      "id": "wa-kraken",
-      "name": "Fetch Kraken Txns",
+      "id": "wa-kraken-tokens",
+      "name": "Fetch Kraken Token Txns",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [880, 300]
+      "position": [660, 440]
     },
     {
       "parameters": {
-        "jsCode": "const cutoff = Math.floor(Date.now() / 1000) - 14400;\nconst priceResult = $node['Fetch ETH Price'].json.result || {};\nconst ethPrice = parseFloat(priceResult.ethusd || '3000');\n\nconst wallets = [\n  { name: 'Coinbase', data: $node['Fetch Coinbase Txns'].json },\n  { name: 'Binance',  data: $node['Fetch Binance Txns'].json },\n  { name: 'Kraken',   data: $node['Fetch Kraken Txns'].json },\n];\n\nconst events = [];\nconst seen = new Set();\n\nfor (const wallet of wallets) {\n  const txns = Array.isArray(wallet.data.result) ? wallet.data.result : [];\n  for (const tx of txns) {\n    const ts = parseInt(tx.timeStamp, 10);\n    if (ts < cutoff) continue;\n    if (tx.isError === '1') continue;\n    if (seen.has(tx.hash)) continue;\n    seen.add(tx.hash);\n    const amountEth = parseFloat(tx.value) / 1e18;\n    const amountUsd = amountEth * ethPrice;\n    if (amountUsd < 1000000) continue;\n    events.push({\n      transaction_hash: tx.hash,\n      symbol: 'ETH',\n      amount: amountEth,\n      amount_usd: Math.round(amountUsd),\n      timestamp: new Date(ts * 1000).toISOString(),\n      from_owner_type: 'exchange',\n      to_owner_type: 'unknown',\n      blockchain: 'ethereum',\n      from_address: tx.from,\n      to_address: tx.to,\n      alert_type: 'large_transfer',\n      url: 'https://etherscan.io/tx/' + tx.hash,\n      source_wallet: wallet.name,\n    });\n  }\n}\n\nevents.sort((a, b) => b.amount_usd - a.amount_usd);\n\nreturn [{ json: { schema_version: 1, events, count: events.length, eth_price: ethPrice } }];"
+        "jsCode": "// Stablecoin contract addresses (1:1 USD, no price feed needed)\nconst STABLECOINS = {\n  '0xdac17f958d2ee523a2206206994597c13d831ec7': { symbol: 'USDT', decimals: 6 },\n  '0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48': { symbol: 'USDC', decimals: 6 },\n  '0x6b175474e89094c44da98b954eedeac495271d0f': { symbol: 'DAI',  decimals: 18 },\n};\n\nconst cutoff = Math.floor(Date.now() / 1000) - 14400;\nconst priceResult = $node['Fetch ETH Price'].json.result || {};\nconst ethPrice = parseFloat(priceResult.ethusd || '2000');\n\nconst seen = new Set();\nconst events = [];\n\n// Helper to add an event (dedup by hash+symbol)\nfunction addEvent(ev) {\n  const key = ev.transaction_hash + ev.symbol;\n  if (seen.has(key)) return;\n  seen.add(key);\n  events.push(ev);\n}\n\n// --- Native ETH transfers ---\nconst ethWallets = [\n  { name: 'Coinbase', data: $node['Fetch Coinbase ETH Txns'].json },\n  { name: 'Binance',  data: $node['Fetch Binance ETH Txns'].json },\n  { name: 'Kraken',   data: $node['Fetch Kraken ETH Txns'].json },\n];\n\nfor (const wallet of ethWallets) {\n  const txns = Array.isArray(wallet.data.result) ? wallet.data.result : [];\n  for (const tx of txns) {\n    const ts = parseInt(tx.timeStamp, 10);\n    if (ts < cutoff) continue;\n    if (tx.isError === '1') continue;\n    const amountEth = parseFloat(tx.value) / 1e18;\n    const amountUsd = amountEth * ethPrice;\n    if (amountUsd < 1000000) continue;\n    addEvent({\n      transaction_hash: tx.hash,\n      symbol: 'ETH',\n      amount: amountEth,\n      amount_usd: Math.round(amountUsd),\n      timestamp: new Date(ts * 1000).toISOString(),\n      from_owner_type: 'exchange',\n      to_owner_type: 'unknown',\n      blockchain: 'ethereum',\n      from_address: tx.from,\n      to_address: tx.to,\n      alert_type: 'large_transfer',\n      url: 'https://etherscan.io/tx/' + tx.hash,\n      source_wallet: wallet.name,\n    });\n  }\n}\n\n// --- Stablecoin (ERC-20) transfers ---\nconst tokenWallets = [\n  { name: 'Coinbase', data: $node['Fetch Coinbase Token Txns'].json },\n  { name: 'Binance',  data: $node['Fetch Binance Token Txns'].json },\n  { name: 'Kraken',   data: $node['Fetch Kraken Token Txns'].json },\n];\n\nfor (const wallet of tokenWallets) {\n  const txns = Array.isArray(wallet.data.result) ? wallet.data.result : [];\n  for (const tx of txns) {\n    const ts = parseInt(tx.timeStamp, 10);\n    if (ts < cutoff) continue;\n    const contract = (tx.contractAddress || '').toLowerCase();\n    const stable = STABLECOINS[contract];\n    if (!stable) continue;\n    const amount = parseFloat(tx.value) / Math.pow(10, stable.decimals);\n    const amountUsd = amount; // 1:1 for stablecoins\n    if (amountUsd < 1000000) continue;\n    addEvent({\n      transaction_hash: tx.hash,\n      symbol: stable.symbol,\n      amount: amount,\n      amount_usd: Math.round(amountUsd),\n      timestamp: new Date(ts * 1000).toISOString(),\n      from_owner_type: 'exchange',\n      to_owner_type: 'unknown',\n      blockchain: 'ethereum',\n      from_address: tx.from,\n      to_address: tx.to,\n      alert_type: 'large_transfer',\n      url: 'https://etherscan.io/tx/' + tx.hash,\n      source_wallet: wallet.name,\n    });\n  }\n}\n\nevents.sort((a, b) => b.amount_usd - a.amount_usd);\n\nreturn [{ json: { schema_version: 1, events, count: events.length, eth_price: ethPrice } }];"
       },
       "id": "wa-merge",
       "name": "Merge & Filter Events",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1100, 300]
+      "position": [880, 300]
     },
     {
       "parameters": {
@@ -88,7 +121,7 @@
       "name": "Has Alerts?",
       "type": "n8n-nodes-base.if",
       "typeVersion": 1,
-      "position": [1320, 300]
+      "position": [1100, 300]
     },
     {
       "parameters": {
@@ -110,17 +143,17 @@
       "name": "POST to AlphaForgeAI",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1540, 200]
+      "position": [1320, 200]
     },
     {
       "parameters": {
-        "jsCode": "const events = $json.events || [];\nconst top = events[0];\nconst usd = top.amount_usd >= 1000000000\n  ? '$' + (top.amount_usd / 1e9).toFixed(1) + 'B'\n  : '$' + (top.amount_usd / 1e6).toFixed(1) + 'M';\nconst eth = top.amount.toFixed(0);\nconst tweet = `WHALE ALERT\\n${eth} ETH (${usd}) moved from ${top.source_wallet} hot wallet\\n\\n${top.url}\\n\\n#Ethereum #ETH #CryptoWhales #AlphaForgeAI`;\nreturn [{ json: { tweet, event: top } }];"
+        "jsCode": "const events = $json.events || [];\nconst top = events[0];\nconst usd = top.amount_usd >= 1000000000\n  ? '$' + (top.amount_usd / 1e9).toFixed(1) + 'B'\n  : '$' + (top.amount_usd / 1e6).toFixed(1) + 'M';\nconst amt = top.symbol === 'ETH'\n  ? top.amount.toFixed(0) + ' ETH'\n  : '$' + (top.amount_usd / 1e6).toFixed(1) + 'M ' + top.symbol;\nconst tweet = `WHALE ALERT\\n${amt} (${usd}) moved from ${top.source_wallet} hot wallet\\n\\n${top.url}\\n\\n#${top.symbol} #CryptoWhales #OnChain #AlphaForgeAI`;\nreturn [{ json: { tweet, event: top } }];"
       },
       "id": "wa-fmt-tweet",
       "name": "Format Tweet",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1760, 200]
+      "position": [1540, 200]
     },
     {
       "parameters": {
@@ -131,7 +164,7 @@
       "name": "Post to X",
       "type": "n8n-nodes-base.twitter",
       "typeVersion": 1,
-      "position": [1980, 200],
+      "position": [1760, 200],
       "credentials": {
         "twitterOAuth1Api": {
           "id": "WPpWGXWXaAS8H8ng",
@@ -147,7 +180,7 @@
       "name": "Log Skip",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
-      "position": [1540, 400]
+      "position": [1320, 400]
     }
   ],
   "connections": {
@@ -155,15 +188,24 @@
       "main": [[{ "node": "Fetch ETH Price", "type": "main", "index": 0 }]]
     },
     "Fetch ETH Price": {
-      "main": [[{ "node": "Fetch Coinbase Txns", "type": "main", "index": 0 }]]
+      "main": [[{ "node": "Fetch Coinbase ETH Txns", "type": "main", "index": 0 }]]
     },
-    "Fetch Coinbase Txns": {
-      "main": [[{ "node": "Fetch Binance Txns", "type": "main", "index": 0 }]]
+    "Fetch Coinbase ETH Txns": {
+      "main": [[{ "node": "Fetch Binance ETH Txns", "type": "main", "index": 0 }]]
     },
-    "Fetch Binance Txns": {
-      "main": [[{ "node": "Fetch Kraken Txns", "type": "main", "index": 0 }]]
+    "Fetch Binance ETH Txns": {
+      "main": [[{ "node": "Fetch Kraken ETH Txns", "type": "main", "index": 0 }]]
     },
-    "Fetch Kraken Txns": {
+    "Fetch Kraken ETH Txns": {
+      "main": [[{ "node": "Fetch Coinbase Token Txns", "type": "main", "index": 0 }]]
+    },
+    "Fetch Coinbase Token Txns": {
+      "main": [[{ "node": "Fetch Binance Token Txns", "type": "main", "index": 0 }]]
+    },
+    "Fetch Binance Token Txns": {
+      "main": [[{ "node": "Fetch Kraken Token Txns", "type": "main", "index": 0 }]]
+    },
+    "Fetch Kraken Token Txns": {
       "main": [[{ "node": "Merge & Filter Events", "type": "main", "index": 0 }]]
     },
     "Merge & Filter Events": {
