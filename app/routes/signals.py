@@ -1,7 +1,7 @@
 import logging
 
 from fastapi import APIRouter, Request
-from fastapi.responses import HTMLResponse
+from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from pathlib import Path
 
@@ -23,6 +23,34 @@ templates.env.filters["confidence_percent"] = confidence_percent
 templates.env.filters["confidence_label"] = confidence_label
 templates.env.filters["confidence_css_class"] = confidence_css_class
 templates.env.filters["importance_percent"] = normalize_percent
+
+
+@router.get("/api/signals/snapshot")
+async def signals_snapshot():
+    """Public JSON endpoint — top signals by confidence for n8n and external consumers."""
+    snapshot  = get_signals()
+    staleness = evaluate_signal_staleness(snapshot.generated_at)
+    signals   = []
+    if not (staleness.is_stale and staleness.action == "filter"):
+        signals = sorted(snapshot.signals, key=lambda s: getattr(s, "confidence", 0) or 0, reverse=True)
+
+    return JSONResponse({
+        "generated_at": snapshot.generated_at,
+        "signal_count":  len(signals),
+        "is_stale":      staleness.is_stale,
+        "signals": [
+            {
+                "symbol":     s.symbol,
+                "direction":  s.direction,
+                "confidence": round(s.confidence, 4),
+                "regime":     s.regime,
+                "timeframe":  s.timeframe,
+                "thesis":     s.thesis,
+                "confluence": s.confluence,
+            }
+            for s in signals
+        ],
+    })
 
 
 @router.get("/signals", response_class=HTMLResponse)
