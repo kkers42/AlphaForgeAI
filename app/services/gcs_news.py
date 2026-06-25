@@ -42,13 +42,13 @@ def _split_articles(articles: list[dict]) -> tuple[list[dict], list[dict]]:
     return fresh, aged
 
 
-def _merge_articles(existing: list[dict], new_items: list[dict]) -> list[dict]:
-    """Deduplicate by URL, merge, sort newest-first."""
+def _merge_articles(existing: list[dict], new_items: list[dict], max_items: int | None = _MAX_ARTICLES) -> list[dict]:
+    """Deduplicate by URL, merge, sort newest-first. Capped at max_items (None = unlimited)."""
     seen = {a["url"] for a in existing}
     additions = [item for item in new_items if item["url"] not in seen]
     merged = existing + additions
     merged.sort(key=lambda a: a.get("published_at", ""), reverse=True)
-    return merged
+    return merged if max_items is None else merged[:max_items]
 
 
 def _archive_articles(aged: list[dict], bucket_name: str) -> None:
@@ -61,7 +61,7 @@ def _archive_articles(aged: list[dict], bucket_name: str) -> None:
             existing = json.loads(blob.download_as_text()).get("articles", [])
         else:
             existing = []
-        merged = _merge_articles(existing, aged)
+        merged = _merge_articles(existing, aged, max_items=None)
         merged.sort(key=lambda a: a.get("published_at", ""), reverse=True)
         payload = {
             "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
