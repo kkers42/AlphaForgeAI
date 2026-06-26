@@ -1,73 +1,121 @@
 {
   "schema_version": 1,
-  "generated_at": "2026-06-26T16:29:09Z",
+  "generated_at": "2026-06-26T19:06:07Z",
   "model_version": "synthetic-v1",
   "source": "generated",
   "signal_count": 12,
   "signals": [
     {
       "symbol": "AAVE",
-      "direction": "FLAT",
-      "timeframe": "1h",
-      "confidence": 0.54,
-      "regime": "chop",
-      "thesis": "Price consolidating in a 1.2% band for 12 hours. ATR contracting, Bollinger Bands squeezing. No directional edge \u2014 model returning FLAT to avoid chop.",
-      "top_features": [
-        [
-          "regime_score",
-          0.43
-        ],
-        [
-          "ema_cluster_dist",
-          0.17
-        ]
-      ]
-    },
-    {
-      "symbol": "DOGE",
       "direction": "LONG",
-      "timeframe": "15m",
-      "confidence": 0.73,
-      "regime": "uptrend",
-      "thesis": "Higher-lows structure intact on the 15m. MACD crossed bullish above signal line. Funding rate neutral \u2014 no crowded longs to unwind. Top-trader L/S at 1.46, slightly elevated but not extreme.",
+      "timeframe": "5m",
+      "confidence": 0.6,
+      "regime": "accumulation",
+      "thesis": "3 consecutive 5m closes above the 20-EMA with increasing volume. Top-trader long/short flipped bullish in the last 2h. RSI at 62 \u2014 momentum present, not yet overbought.",
       "top_features": [
         [
-          "macd_hist",
-          0.16
+          "bb_lower_bounce",
+          0.21
         ],
         [
-          "ls_ratio",
+          "consec_closes_above_ema",
+          0.2
+        ],
+        [
+          "ema_20_dist",
           0.16
         ],
         [
           "top_trader_ls",
-          0.13
-        ],
+          0.14
+        ]
+      ]
+    },
+    {
+      "symbol": "ARB",
+      "direction": "LONG",
+      "timeframe": "15m",
+      "confidence": 0.75,
+      "regime": "accumulation",
+      "thesis": "Higher-lows structure intact on the 15m. MACD crossed bullish above signal line. Funding rate neutral \u2014 no crowded longs to unwind. Top-trader L/S at 1.39, slightly elevated but not extreme.",
+      "top_features": [
         [
           "breakout_4h_res",
-          0.11
+          0.27
+        ],
+        [
+          "macd_hist",
+          0.23
+        ],
+        [
+          "rsi_14",
+          0.12
+        ]
+      ]
+    },
+    {
+      "symbol": "AVAX",
+      "direction": "SHORT",
+      "timeframe": "15m",
+      "confidence": 0.67,
+      "regime": "reversal",
+      "thesis": "Lower-highs sequence established on the 15m. RSI rejected from 64 at the midline \u2014 failed recovery. Funding rate slightly positive: still longs to flush.",
+      "top_features": [
+        [
+          "rsi_divergence",
+          0.26
+        ],
+        [
+          "bb_upper_reject",
+          0.24
+        ],
+        [
+          "lower_highs_count",
+          0.18
+        ]
+      ]
+    },
+    {
+      "symbol": "BTC",
+      "direction": "FLAT",
+      "timeframe": "5m",
+      "confidence": 0.44,
+      "regime": "consolidation",
+      "thesis": "ADX below 20 \u2014 trend strength insufficient. Chop index elevated: mean-reverting environment. Waiting for regime clarification before committing direction.",
+      "top_features": [
+        [
+          "chop_index",
+          0.2
+        ],
+        [
+          "adx_14",
+          0.2
+        ],
+        [
+          "volatility_ratio",
+          0.2
+        ],
+        [
+          "ema_cluster_dist",
+          0.08
         ]
       ]
     },
     {
       "symbol": "DOT",
       "direction": "LONG",
-      "timeframe": "15m",
-      "confidence": 0.77,
-      "regime": "uptrend",
-      "thesis": "Broke above 4h resistance with volume confirmation on the 15m. Exchange netflow negative \u2014 withdrawals outpacing deposits, consistent with accumulation rather than distribution.",
+      "timeframe": "4h",
+      "confidence": 0.85,
+      "regime": "accumulation",
+      "thesis": "3 consecutive 4h closes above the 20-EMA with increasing volume. Top-trader long/short flipped bullish in the last 2h. RSI at 53 \u2014 momentum present, not yet overbought.",
       "top_features": [
         [
+          "consec_closes_above_ema",
+          0.33
+        ],
+        [
           "top_trader_ls",
-          0.31
-        ],
-        [
-          "oi_change_1h",
-          0.2
-        ],
-        [
-          "rsi_14",
-          0.11
+          0.22
         ]
       ]
     },
@@ -75,177 +123,141 @@
       "symbol": "INJ",
       "direction": "SHORT",
       "timeframe": "15m",
-      "confidence": 0.67,
-      "regime": "reversal",
-      "thesis": "Failed to reclaim the 50-EMA on 2 attempts \u2014 each bounce weaker than the last. Volume declining on bounces, elevated on drops. OI flat while price drifts lower: not a squeeze setup, just distribution.",
+      "confidence": 0.6,
+      "regime": "downtrend",
+      "thesis": "Repeated rejection from the upper Bollinger Band over 4 15m candles. OI declining alongside price \u2014 longs exiting, not a short squeeze setup. RSI at 65, overbought territory with divergence forming.",
       "top_features": [
         [
-          "rsi_divergence",
-          0.34
+          "volume_on_bounce",
+          0.28
         ],
         [
-          "ema_50_rejection_count",
-          0.19
+          "oi_trend",
+          0.27
+        ]
+      ]
+    },
+    {
+      "symbol": "LINK",
+      "direction": "LONG",
+      "timeframe": "15m",
+      "confidence": 0.7,
+      "regime": "accumulation",
+      "thesis": "2 consecutive 15m closes above the 20-EMA with increasing volume. Top-trader long/short flipped bullish in the last 2h. RSI at 68 \u2014 momentum present, not yet overbought.",
+      "top_features": [
+        [
+          "consec_closes_above_ema",
+          0.21
         ],
         [
-          "bb_upper_reject",
+          "breakout_4h_res",
           0.18
+        ],
+        [
+          "top_trader_ls",
+          0.08
+        ],
+        [
+          "exchange_netflow_1h",
+          0.08
         ]
       ]
     },
     {
       "symbol": "LTC",
-      "direction": "SHORT",
-      "timeframe": "4h",
-      "confidence": 0.68,
-      "regime": "distribution",
-      "thesis": "MACD crossed bearish below signal line with histogram expanding. Top-trader long/short flipped short in the last 2h. Volume spike on the breakdown candle confirms conviction.",
-      "top_features": [
-        [
-          "oi_trend",
-          0.22
-        ],
-        [
-          "funding_rate",
-          0.22
-        ],
-        [
-          "bb_upper_reject",
-          0.16
-        ]
-      ]
-    },
-    {
-      "symbol": "OP",
       "direction": "FLAT",
-      "timeframe": "15m",
-      "confidence": 0.57,
-      "regime": "chop",
+      "timeframe": "4h",
+      "confidence": 0.45,
+      "regime": "ranging",
       "thesis": "ADX below 20 \u2014 trend strength insufficient. Chop index elevated: mean-reverting environment. Waiting for regime clarification before committing direction.",
       "top_features": [
         [
-          "adx_14",
-          0.35
+          "atr_14",
+          0.48
         ],
         [
-          "atr_14",
-          0.21
+          "chop_index",
+          0.26
         ]
       ]
     },
     {
       "symbol": "PEPE",
       "direction": "LONG",
-      "timeframe": "15m",
-      "confidence": 0.63,
-      "regime": "uptrend",
-      "thesis": "Bollinger Band lower-bounce confirmed with a 15m close above the midline. RSI reset from 32 back to 43 \u2014 momentum recovering without being extended. OI rising while price holds: real buyers stepping in.",
+      "timeframe": "5m",
+      "confidence": 0.79,
+      "regime": "accumulation",
+      "thesis": "3 consecutive 5m closes above the 20-EMA with increasing volume. Top-trader long/short flipped bullish in the last 2h. RSI at 45 \u2014 momentum present, not yet overbought.",
       "top_features": [
         [
-          "oi_change_1h",
-          0.39
+          "exchange_netflow_1h",
+          0.26
         ],
         [
-          "macd_hist",
-          0.32
+          "ema_20_dist",
+          0.18
+        ],
+        [
+          "ls_ratio",
+          0.13
         ]
       ]
     },
     {
       "symbol": "SHIB",
-      "direction": "FLAT",
-      "timeframe": "4h",
-      "confidence": 0.56,
-      "regime": "ranging",
-      "thesis": "Regime unclear \u2014 oscillating between EMA clusters on the 4h with no follow-through. Confidence below the 0.55 threshold. No trade.",
-      "top_features": [
-        [
-          "atr_14",
-          0.39
-        ],
-        [
-          "bb_width",
-          0.17
-        ]
-      ]
-    },
-    {
-      "symbol": "SOL",
-      "direction": "LONG",
-      "timeframe": "4h",
-      "confidence": 0.78,
-      "regime": "uptrend",
-      "thesis": "Broke above 4h resistance with volume confirmation on the 4h. Exchange netflow negative \u2014 withdrawals outpacing deposits, consistent with accumulation rather than distribution.",
-      "top_features": [
-        [
-          "oi_change_1h",
-          0.24
-        ],
-        [
-          "volume_ratio",
-          0.22
-        ],
-        [
-          "consec_closes_above_ema",
-          0.13
-        ],
-        [
-          "higher_lows_count",
-          0.12
-        ]
-      ]
-    },
-    {
-      "symbol": "SUI",
       "direction": "SHORT",
       "timeframe": "1h",
-      "confidence": 0.79,
+      "confidence": 0.71,
       "regime": "distribution",
-      "thesis": "Repeated rejection from the upper Bollinger Band over 2 1h candles. OI declining alongside price \u2014 longs exiting, not a short squeeze setup. RSI at 65, overbought territory with divergence forming.",
+      "thesis": "Repeated rejection from the upper Bollinger Band over 2 1h candles. OI declining alongside price \u2014 longs exiting, not a short squeeze setup. RSI at 60, overbought territory with divergence forming.",
       "top_features": [
         [
-          "rsi_divergence",
-          0.45
+          "funding_rate",
+          0.31
         ],
         [
-          "funding_rate",
-          0.27
+          "bb_upper_reject",
+          0.24
         ]
       ]
     },
     {
       "symbol": "UNI",
       "direction": "LONG",
-      "timeframe": "4h",
-      "confidence": 0.64,
-      "regime": "accumulation",
-      "thesis": "Higher-lows structure intact on the 4h. MACD crossed bullish above signal line. Funding rate neutral \u2014 no crowded longs to unwind. Top-trader L/S at 1.26, slightly elevated but not extreme.",
+      "timeframe": "1h",
+      "confidence": 0.6,
+      "regime": "uptrend",
+      "thesis": "Bollinger Band lower-bounce confirmed with a 1h close above the midline. RSI reset from 37 back to 56 \u2014 momentum recovering without being extended. OI rising while price holds: real buyers stepping in.",
       "top_features": [
         [
-          "macd_hist",
-          0.36
+          "ls_ratio",
+          0.25
         ],
         [
-          "ls_ratio",
-          0.36
+          "macd_hist",
+          0.19
+        ],
+        [
+          "top_trader_ls",
+          0.17
         ]
       ]
     },
     {
       "symbol": "WIF",
-      "direction": "SHORT",
-      "timeframe": "1h",
-      "confidence": 0.68,
-      "regime": "reversal",
-      "thesis": "Failed to reclaim the 50-EMA on 3 attempts \u2014 each bounce weaker than the last. Volume declining on bounces, elevated on drops. OI flat while price drifts lower: not a squeeze setup, just distribution.",
+      "direction": "LONG",
+      "timeframe": "15m",
+      "confidence": 0.77,
+      "regime": "accumulation",
+      "thesis": "2 consecutive 15m closes above the 20-EMA with increasing volume. Top-trader long/short flipped bullish in the last 2h. RSI at 47 \u2014 momentum present, not yet overbought.",
       "top_features": [
         [
-          "oi_trend",
-          0.37
+          "bb_lower_bounce",
+          0.3
         ],
         [
-          "top_trader_ls",
-          0.24
+          "rsi_14",
+          0.27
         ]
       ]
     }
