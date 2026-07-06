@@ -91,6 +91,11 @@ class Settings:
         default_factory=lambda: os.getenv("GCS_BLOG_BUCKET", "alphaforgeai-blog")
     )
 
+    # ── GCS subscriber storage ───────────────────────────────────────────────
+    gcs_subscribers_bucket: str = field(
+        default_factory=lambda: os.getenv("GCS_SUBSCRIBERS_BUCKET", "alphaforgeai-subscribers")
+    )
+
     # ── Sentinel SSH connection ──────────────────────────────────────────────
     # Required when signal_source == "sentinel_ssh".
     sentinel_ssh_host:         str = field(default_factory=lambda: os.getenv("SENTINEL_SSH_HOST", ""))
