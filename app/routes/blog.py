@@ -99,7 +99,9 @@ async def ingest_blog(request: Request) -> dict:
     Or a single post dict directly (schema_version optional).
 
     Each post requires: title, published_at, summary, content.
-    Optional: sources (list), assets (list), tags (list), author.
+    Optional: sources (list), assets (list), tags (list), author,
+              x_posts (dict with signal_card/hook/risk_aware),
+              content_score (int 0-100), evidence (dict).
     """
     try:
         raw = await request.json()
