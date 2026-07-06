@@ -3,7 +3,7 @@ from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 
 from app.core.config import settings
-from app.routes import ingest, pages, dashboard, signals, explainers, news, blog
+from app.routes import ingest, pages, dashboard, signals, explainers, news, blog, whale_alerts
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -25,3 +25,4 @@ app.include_router(ingest.router)
 app.include_router(explainers.router)
 app.include_router(news.router)
 app.include_router(blog.router)
+app.include_router(whale_alerts.router)

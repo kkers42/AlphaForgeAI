@@ -91,6 +91,16 @@ class Settings:
         default_factory=lambda: os.getenv("GCS_BLOG_BUCKET", "alphaforgeai-blog")
     )
 
+    # ── Whale alert ingest API ───────────────────────────────────────────────
+    whale_alerts_ingest_api_key: str = field(
+        default_factory=lambda: os.getenv("WHALE_ALERTS_INGEST_API_KEY", "")
+    )
+
+    # ── GCS whale alert storage ──────────────────────────────────────────────
+    gcs_whale_alerts_bucket: str = field(
+        default_factory=lambda: os.getenv("GCS_WHALE_ALERTS_BUCKET", "alphaforgeai-whale-alerts")
+    )
+
     # ── Sentinel SSH connection ──────────────────────────────────────────────
     # Required when signal_source == "sentinel_ssh".
     sentinel_ssh_host:         str = field(default_factory=lambda: os.getenv("SENTINEL_SSH_HOST", ""))
