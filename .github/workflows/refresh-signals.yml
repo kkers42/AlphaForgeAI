@@ -12,7 +12,6 @@ on:
 
 permissions:
   contents: write
-  id-token: write
 
 concurrency:
   group: refresh-signals-${{ github.ref }}
@@ -105,18 +104,14 @@ jobs:
           echo "changed=true" >> "$GITHUB_OUTPUT"
 
       - name: Authenticate to Google Cloud
-        if: steps.commit.outputs.changed == 'true'
         uses: google-github-actions/auth@v2
         with:
-          workload_identity_provider: ${{ secrets.GCP_WORKLOAD_IDENTITY_PROVIDER }}
-          service_account: ${{ secrets.GCP_SERVICE_ACCOUNT }}
+          credentials_json: ${{ secrets.GOOGLE_CREDENTIALS }}
 
       - name: Set up Cloud SDK
-        if: steps.commit.outputs.changed == 'true'
         uses: google-github-actions/setup-gcloud@v2
 
       - name: Build and deploy fresh image to Cloud Run
-        if: steps.commit.outputs.changed == 'true'
         run: |
           set -euo pipefail
           IMAGE="us-central1-docker.pkg.dev/alphaforgeai/cloud-run-source-deploy/alphaforgeai:latest"
