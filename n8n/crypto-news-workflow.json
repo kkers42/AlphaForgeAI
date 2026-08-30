@@ -1,0 +1,347 @@
+{
+  "name": "Crypto News → Discord Digest",
+  "nodes": [
+    {
+      "parameters": {
+        "content": "## 🔧 Setup Checklist\n\n**1. OpenAI Credentials**\nAdd your OpenAI API key via *n8n → Credentials → New → OpenAI API*.\nThen open the **AI Score and Summarize** node and select it.\n\n**2. Discord Webhook URL**\nIn your Discord channel: *Settings → Integrations → Webhooks → New Webhook → Copy URL*.\n\nTarget channel: discord.com/channels/1503406482539024384/1503406810294386808\n\nSet `DISCORD_WEBHOOK_URL` in n8n *Settings → Environment Variables*, **or** hard-code it directly in the two HTTP Request nodes.\n\n**3. Error Workflow (optional)**\nTo enable the Error Trigger, go to this workflow's *Settings → Error Workflow* and point it at this same workflow's ID.\n\n**4. Activate**\nToggle the workflow *Active* — it will fire every 4 hours automatically.\n\n---\n**RSS Sources Monitored**\n- CoinDesk · CoinTelegraph · The Block · Decrypt · Bitcoin Magazine\n\n**Score Threshold**: articles scoring **≥ 7 / 10** are posted to Discord.",
+        "height": 500,
+        "width": 480,
+        "color": 4
+      },
+      "id": "sticky-setup-01",
+      "name": "Setup Instructions",
+      "type": "n8n-nodes-base.stickyNote",
+      "typeVersion": 1,
+      "position": [-560, -20]
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours",
+              "hoursInterval": 4
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger-01",
+      "name": "Every 4 Hours",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [0, 320]
+    },
+    {
+      "parameters": {
+        "url": "https://www.coindesk.com/arc/outboundfeeds/rss/"
+      },
+      "id": "rss-coindesk-01",
+      "name": "RSS: CoinDesk",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [240, 60],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "https://cointelegraph.com/rss"
+      },
+      "id": "rss-cointelegraph-01",
+      "name": "RSS: CoinTelegraph",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [240, 200],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "https://www.theblock.co/rss.xml"
+      },
+      "id": "rss-theblock-01",
+      "name": "RSS: The Block",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [240, 340],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "https://decrypt.co/feed"
+      },
+      "id": "rss-decrypt-01",
+      "name": "RSS: Decrypt",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [240, 480],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "url": "https://bitcoinmagazine.com/.rss/full/"
+      },
+      "id": "rss-bitcoinmag-01",
+      "name": "RSS: Bitcoin Magazine",
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1,
+      "position": [240, 620],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "append"
+      },
+      "id": "merge-feeds-01",
+      "name": "Merge All Feeds",
+      "type": "n8n-nodes-base.merge",
+      "typeVersion": 2.1,
+      "position": [500, 340]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForAllItems",
+        "jsCode": "// ── Deduplicate by URL using workflow-persistent static data ──\n// Static data survives between executions without any external DB.\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.seenUrls) staticData.seenUrls = [];\n\nconst seenSet = new Set(staticData.seenUrls);\nconst allItems = $input.all();\n\n// Normalise fields across different RSS feed schemas\nconst newItems = allItems\n  .filter(item => !item.json.error)  // drop failed RSS fetches\n  .map(item => {\n    const j = item.json;\n    return {\n      json: {\n        title:          (j.title || 'Untitled').trim(),\n        link:           (j.link || j.url || j.guid || '').trim(),\n        contentSnippet: (j.contentSnippet || j.content || j.description || '').replace(/<[^>]+>/g, '').substring(0, 1500),\n        pubDate:        j.pubDate || j.isoDate || new Date().toISOString(),\n        source:         j.creator || j.author || j['dc:creator'] || 'Unknown',\n      }\n    };\n  })\n  .filter(item => item.json.link && !seenSet.has(item.json.link));\n\nif (newItems.length === 0) {\n  // Nothing new — return empty array to halt downstream nodes gracefully\n  return [];\n}\n\nreturn newItems;"
+      },
+      "id": "deduplicate-urls-01",
+      "name": "Deduplicate URLs",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [740, 340]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Mark this URL as seen immediately so a later failure won't cause a re-post.\n// We cap the list at 2 000 entries to prevent unbounded static-data growth.\nconst staticData = $getWorkflowStaticData('global');\nif (!staticData.seenUrls) staticData.seenUrls = [];\n\nconst url = $json.link;\nif (url && !staticData.seenUrls.includes(url)) {\n  staticData.seenUrls.push(url);\n  if (staticData.seenUrls.length > 2000) {\n    staticData.seenUrls = staticData.seenUrls.slice(-2000);\n  }\n}\n\nreturn { json: $json };"
+      },
+      "id": "mark-seen-01",
+      "name": "Mark All Seen",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [980, 340]
+    },
+    {
+      "parameters": {
+        "resource": "chat",
+        "operation": "sendMessage",
+        "modelId": {
+          "__rl": true,
+          "value": "gpt-4o-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4o-mini"
+        },
+        "messages": {
+          "values": [
+            {
+              "role": "system",
+              "content": "You are a crypto market intelligence assistant embedded in a trading alert system. Your job is to score news articles for relevance to active crypto traders and provide a concise summary.\n\nRespond ONLY with valid JSON matching this exact schema — no markdown, no extra keys:\n{\"score\": <integer 0-10>, \"reason\": \"<one sentence, max 120 chars>\", \"summary\": \"<2-3 sentences, max 300 chars>\"}\n\nScoring guide:\n10   — Exchange hacks, major exploits >$1M, regulatory bans, protocol failures, flash crashes\n8-9  — Major protocol upgrades, confirmed whale moves >$10M, tier-1 exchange listings, SEC enforcement\n7    — DeFi launches, notable partnerships, unusual on-chain metrics, significant macro events\n5-6  — General market commentary, minor protocol updates, price analysis\n3-4  — Educational content, opinion pieces, minor industry news\n1-2  — Lifestyle, general finance tangentially related to crypto\n0    — Spam or completely unrelated content"
+            },
+            {
+              "role": "user",
+              "content": "=Title: {{ $json.title }}\n\nContent: {{ $json.contentSnippet }}\n\nURL: {{ $json.link }}\nPublished: {{ $json.pubDate }}"
+            }
+          ]
+        },
+        "simplifyOutput": true,
+        "options": {
+          "temperature": 0.1,
+          "maxTokens": 400
+        }
+      },
+      "id": "ai-score-01",
+      "name": "AI Score and Summarize",
+      "type": "n8n-nodes-base.openAi",
+      "typeVersion": 1.6,
+      "position": [1220, 340],
+      "continueOnFail": true,
+      "credentials": {
+        "openAiApi": {
+          "id": "REPLACE_WITH_CREDENTIAL_ID",
+          "name": "OpenAI API"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Parse the AI JSON response and merge back with the original article fields.\n// The OpenAI node replaces item data with the AI response, so we re-attach\n// the original article via the named-node reference $('Mark All Seen').item.json\nconst aiText = (\n  $json.content              // simplifyOutput:true  → {content: '...'}\n  || $json.message?.content  // some n8n versions    → {message: {content: '...'}}\n  || $json.choices?.[0]?.message?.content  // raw OpenAI shape\n  || ''\n).trim();\n\nconst originalArticle = $('Mark All Seen').item.json;\n\nlet parsed = { score: 0, reason: 'Could not parse AI response', summary: '' };\ntry {\n  const match = aiText.match(/\\{[\\s\\S]*\\}/);\n  if (match) parsed = JSON.parse(match[0]);\n} catch (_) { /* keep safe defaults */ }\n\nconst score = Math.min(10, Math.max(0, Number(parsed.score) || 0));\n\nreturn {\n  json: {\n    ...originalArticle,\n    score,\n    reason:  String(parsed.reason  || 'No reason provided').substring(0, 120),\n    summary: String(parsed.summary || originalArticle.contentSnippet || '').substring(0, 300),\n  }\n};"
+      },
+      "id": "parse-ai-01",
+      "name": "Parse AI Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1460, 340]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "score-gte-7",
+              "leftValue": "={{ $json.score }}",
+              "rightValue": 7,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "filter-score-01",
+      "name": "Score ≥ 7?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1700, 340]
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Build the Discord embed payload.\n// Colors: red (9-10) → orange (8) → gold (7)\nconst score = $json.score || 0;\nconst color = score >= 9 ? 15158332 : score === 8 ? 16744272 : 16776960;\n\nconst scoreBar = '█'.repeat(score) + '░'.repeat(10 - score);\n\nconst embed = {\n  title:       String($json.title || 'Crypto News').substring(0, 256),\n  description: String($json.summary || '').substring(0, 4096),\n  url:         $json.link || '',\n  color,\n  fields: [\n    {\n      name:   '🎯 Relevance',\n      value:  `**${score}/10**  \\`${scoreBar}\\``,\n      inline: true\n    },\n    {\n      name:   '📰 Source',\n      value:  String($json.source || 'Unknown').substring(0, 256),\n      inline: true\n    },\n    {\n      name:   '💡 Why It Matters',\n      value:  String($json.reason || 'No reason provided').substring(0, 1024),\n      inline: false\n    }\n  ],\n  footer: {\n    text: 'AlphaForgeAI Crypto Intel'\n  },\n  timestamp: new Date().toISOString()\n};\n\nreturn {\n  json: {\n    ...$json,\n    discordPayload: JSON.stringify({ embeds: [embed] })\n  }\n};"
+      },
+      "id": "format-discord-01",
+      "name": "Format Discord Embed",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1940, 220]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DISCORD_WEBHOOK_URL }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.discordPayload }}",
+        "options": {
+          "response": {
+            "response": {
+              "fullResponse": false
+            }
+          }
+        }
+      },
+      "id": "post-discord-01",
+      "name": "Post to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [2180, 220],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "// Verify the Discord post succeeded (HTTP 2xx).\n// If it failed, log the error but do NOT re-add the URL to seenUrls\n// so the article can be retried on the next run.\nconst statusCode = $json.statusCode || 200;\nif (statusCode >= 400) {\n  const staticData = $getWorkflowStaticData('global');\n  const url = $json.link;\n  if (url && staticData.seenUrls) {\n    staticData.seenUrls = staticData.seenUrls.filter(u => u !== url);\n  }\n  throw new Error(`Discord returned HTTP ${statusCode} — URL removed from seen list for retry`);\n}\nreturn { json: $json };"
+      },
+      "id": "verify-post-01",
+      "name": "Verify Post / Retry Guard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [2420, 220]
+    },
+    {
+      "parameters": {},
+      "id": "error-trigger-01",
+      "name": "Error Trigger",
+      "type": "n8n-nodes-base.errorTrigger",
+      "typeVersion": 1,
+      "position": [0, 620]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.DISCORD_WEBHOOK_URL }}",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ embeds: [{ title: '⚠️ Crypto News Workflow Error', description: ('```json\\n' + JSON.stringify({ node: $json.execution && $json.execution.lastNodeExecuted, error: ($json.execution && $json.execution.error && $json.execution.error.message) || 'Unknown error' }, null, 2) + '\\n```').substring(0, 4096), color: 15158332, footer: { text: 'AlphaForgeAI — Error Handler' }, timestamp: new Date().toISOString() }] }) }}"
+      },
+      "id": "post-error-01",
+      "name": "Post Error to Discord",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [240, 700]
+    }
+  ],
+  "connections": {
+    "Every 4 Hours": {
+      "main": [
+        [
+          { "node": "RSS: CoinDesk",       "type": "main", "index": 0 },
+          { "node": "RSS: CoinTelegraph",   "type": "main", "index": 0 },
+          { "node": "RSS: The Block",       "type": "main", "index": 0 },
+          { "node": "RSS: Decrypt",         "type": "main", "index": 0 },
+          { "node": "RSS: Bitcoin Magazine","type": "main", "index": 0 }
+        ]
+      ]
+    },
+    "RSS: CoinDesk": {
+      "main": [[ { "node": "Merge All Feeds", "type": "main", "index": 0 } ]]
+    },
+    "RSS: CoinTelegraph": {
+      "main": [[ { "node": "Merge All Feeds", "type": "main", "index": 1 } ]]
+    },
+    "RSS: The Block": {
+      "main": [[ { "node": "Merge All Feeds", "type": "main", "index": 2 } ]]
+    },
+    "RSS: Decrypt": {
+      "main": [[ { "node": "Merge All Feeds", "type": "main", "index": 3 } ]]
+    },
+    "RSS: Bitcoin Magazine": {
+      "main": [[ { "node": "Merge All Feeds", "type": "main", "index": 4 } ]]
+    },
+    "Merge All Feeds": {
+      "main": [[ { "node": "Deduplicate URLs", "type": "main", "index": 0 } ]]
+    },
+    "Deduplicate URLs": {
+      "main": [[ { "node": "Mark All Seen", "type": "main", "index": 0 } ]]
+    },
+    "Mark All Seen": {
+      "main": [[ { "node": "AI Score and Summarize", "type": "main", "index": 0 } ]]
+    },
+    "AI Score and Summarize": {
+      "main": [[ { "node": "Parse AI Response", "type": "main", "index": 0 } ]]
+    },
+    "Parse AI Response": {
+      "main": [[ { "node": "Score ≥ 7?", "type": "main", "index": 0 } ]]
+    },
+    "Score ≥ 7?": {
+      "main": [
+        [ { "node": "Format Discord Embed", "type": "main", "index": 0 } ],
+        []
+      ]
+    },
+    "Format Discord Embed": {
+      "main": [[ { "node": "Post to Discord", "type": "main", "index": 0 } ]]
+    },
+    "Post to Discord": {
+      "main": [[ { "node": "Verify Post / Retry Guard", "type": "main", "index": 0 } ]]
+    },
+    "Error Trigger": {
+      "main": [[ { "node": "Post Error to Discord", "type": "main", "index": 0 } ]]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "pinData": {},
+  "versionId": "8f2b9c14-3d7e-4a8f-b1c2-9d8e7f6a5b4c",
+  "meta": {
+    "templateCredsSetupCompleted": false,
+    "instanceId": "local"
+  },
+  "id": "crypto-news-discord",
+  "tags": [
+    { "id": "tag-crypto",  "name": "crypto"  },
+    { "id": "tag-discord", "name": "discord" },
+    { "id": "tag-rss",    "name": "rss"     }
+  ]
+}
