@@ -1,0 +1,173 @@
+{
+  "name": "AlphaForgeAI Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 15
+            }
+          ]
+        }
+      },
+      "id": "a1b2c3d4-0001-0001-0001-000000000001",
+      "name": "Every 15 Minutes",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://alphaforgeai.io/api/news",
+        "options": {
+          "timeout": 15000
+        }
+      },
+      "id": "a1b2c3d4-0002-0002-0002-000000000002",
+      "name": "Check News Feed",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "jsCode": "// Check news feed freshness and build alert status\n// All ES5/ASCII -- no template literals, no Unicode special chars\nvar item = $input.item.json;\nvar now = new Date();\nvar alertNeeded = false;\nvar alertReason = '';\nvar alertSeverity = 'warn'; // 'warn' or 'crit'\n\n// Check for HTTP error (continueOnFail passes error as item.error)\nif (item.error || $input.item.pairedItem === undefined) {\n  alertNeeded = true;\n  alertReason = 'AlphaForgeAI /api/news endpoint is unreachable or returned an error.';\n  alertSeverity = 'crit';\n} else {\n  var generatedAt = item.generated_at || '';\n  if (!generatedAt) {\n    alertNeeded = true;\n    alertReason = 'News feed response missing generated_at field. Feed may be empty or broken.';\n    alertSeverity = 'warn';\n  } else {\n    // Parse timestamp\n    var ts = new Date(generatedAt.replace('Z', '+00:00'));\n    var ageMinutes = Math.floor((now - ts) / 60000);\n    // Alert if feed is older than 8 hours (480 minutes)\n    // News workflow runs 4x/day so max gap is ~6h; 8h allows buffer\n    if (ageMinutes > 480) {\n      alertNeeded = true;\n      alertReason = 'News feed has not been updated in ' + ageMinutes + ' minutes (>' + Math.floor(ageMinutes/60) + 'h). Last update: ' + generatedAt;\n      alertSeverity = 'warn';\n    }\n  }\n}\n\nreturn [{\n  json: {\n    alertNeeded: alertNeeded,\n    alertReason: alertReason,\n    alertSeverity: alertSeverity,\n    checkedAt: now.toISOString(),\n    generatedAt: (item && item.generated_at) ? item.generated_at : 'unknown',\n    totalArticles: (item && item.total) ? item.total : 0\n  }\n}];"
+      },
+      "id": "a1b2c3d4-0003-0003-0003-000000000003",
+      "name": "Evaluate Freshness",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "cond-001",
+              "leftValue": "={{ $json.alertNeeded }}",
+              "rightValue": true,
+              "operator": {
+                "type": "boolean",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "a1b2c3d4-0004-0004-0004-000000000004",
+      "name": "Alert Needed?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Discord embed payload\nvar d = $input.item.json;\nvar isCrit = (d.alertSeverity === 'crit');\nvar color = isCrit ? 15158332 : 16776960; // red or yellow\nvar emoji = isCrit ? ':red_circle:' : ':warning:';\nvar title = emoji + ' AlphaForgeAI News Alert';\nvar desc = d.alertReason + '\\n\\nChecked at: ' + d.checkedAt;\n\nreturn [{\n  json: {\n    payload: JSON.stringify({\n      embeds: [{\n        title: title,\n        description: desc,\n        color: color,\n        timestamp: d.checkedAt\n      }]\n    })\n  }\n}];"
+      },
+      "id": "a1b2c3d4-0005-0005-0005-000000000005",
+      "name": "Build Discord Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discordapp.com/api/webhooks/1321695633959284787/3bXfwNb2kMLtDwdJnQc5Ydx_3CPbmWPbnDC55DW6WHHv_QN3kMZL8CFR4vlSz5lHGvFF",
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ $json.payload }}",
+        "options": {
+          "timeout": 10000
+        }
+      },
+      "id": "a1b2c3d4-0006-0006-0006-000000000006",
+      "name": "Send Discord Alert",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 200],
+      "continueOnFail": true
+    }
+  ],
+  "connections": {
+    "Every 15 Minutes": {
+      "main": [
+        [
+          {
+            "node": "Check News Feed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check News Feed": {
+      "main": [
+        [
+          {
+            "node": "Evaluate Freshness",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evaluate Freshness": {
+      "main": [
+        [
+          {
+            "node": "Alert Needed?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Alert Needed?": {
+      "main": [
+        [
+          {
+            "node": "Build Discord Payload",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        []
+      ]
+    },
+    "Build Discord Payload": {
+      "main": [
+        [
+          {
+            "node": "Send Discord Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1",
+    "saveManualExecutions": true,
+    "callerPolicy": "workflowsFromSameOwner",
+    "errorWorkflow": ""
+  },
+  "staticData": null,
+  "tags": ["alphaforgeai", "monitor"],
+  "triggerCount": 0,
+  "updatedAt": "2026-06-07T00:00:00.000Z",
+  "versionId": "monitor-v1.0.0"
+}
