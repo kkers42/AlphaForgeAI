@@ -17,7 +17,7 @@ def _int_env(var: str, default: int) -> int:
 @dataclass
 class Settings:
     app_name:     str = "AlphaForgeAI"
-    app_version:  str = "0.6.0"
+    app_version:  str = "0.4.0"
     environment:  str = field(default_factory=lambda: os.getenv("ENVIRONMENT", "development"))
     signal_source: str = field(default_factory=lambda: os.getenv("SIGNAL_SOURCE", "local_snapshot"))
 
@@ -79,18 +79,6 @@ class Settings:
         default_factory=lambda: os.getenv("GCS_NEWS_BUCKET", "alphaforgeai-news")
     )
 
-    # ── Blog ingest API ──────────────────────────────────────────────────────
-    # Bearer token required by POST /api/blog/ingest.
-    # Generate with: python -c "import secrets; print(secrets.token_urlsafe(32))"
-    blog_ingest_api_key: str = field(
-        default_factory=lambda: os.getenv("BLOG_INGEST_API_KEY", "")
-    )
-
-    # ── GCS blog storage ──────────────────────────────────────────────────────
-    gcs_blog_bucket: str = field(
-        default_factory=lambda: os.getenv("GCS_BLOG_BUCKET", "alphaforgeai-blog")
-    )
-
     # ── Sentinel SSH connection ──────────────────────────────────────────────
     # Required when signal_source == "sentinel_ssh".
     sentinel_ssh_host:         str = field(default_factory=lambda: os.getenv("SENTINEL_SSH_HOST", ""))
@@ -117,13 +105,6 @@ class Settings:
         default_factory=lambda: os.getenv(
             "SENTINEL_SSH_STRICT_HOST_KEY", "false"
         ).strip().lower() in ("1", "true", "yes")
-    )
-
-    # ── Signal display limit ─────────────────────────────────────────────────
-    # Max signals shown on /signals, ranked by confidence desc before limiting.
-    # 0 = show all. Override with SIGNAL_DISPLAY_LIMIT env var or ?limit=all.
-    signal_display_limit: int = field(
-        default_factory=lambda: _int_env("SIGNAL_DISPLAY_LIMIT", 10)
     )
 
     # ── Confluence engine ────────────────────────────────────────────────────
@@ -173,6 +154,20 @@ class Settings:
     def sentinel_configured(self) -> bool:
         """True when SENTINEL_SSH_HOST is set (i.e. the SSH source can attempt a connection)."""
         return bool(self.sentinel_ssh_host)
+
+    # ── Bug reporter → GitHub issues ─────────────────────────────────────────
+    # Fine-grained PAT with "Issues: write" on this one repo only. Generate at
+    # github.com/settings/personal-access-tokens, scoped to kkers42/AlphaForgeAI.
+    github_feedback_token: str = field(
+        default_factory=lambda: os.getenv("GITHUB_FEEDBACK_TOKEN", "")
+    )
+    github_feedback_repo: str = field(
+        default_factory=lambda: os.getenv("GITHUB_FEEDBACK_REPO", "kkers42/AlphaForgeAI")
+    )
+
+    @property
+    def feedback_configured(self) -> bool:
+        return bool(self.github_feedback_token)
 
 
 # Single shared instance imported everywhere

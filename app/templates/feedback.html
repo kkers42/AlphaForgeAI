@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Report a Bug{% endblock %}
+
+{% block head %}
+<style>
+  .fb-wrap { max-width: 560px; margin: 40px auto; padding: 0 16px; }
+  .fb-wrap h1 { font-size: 22px; margin-bottom: 6px; }
+  .fb-wrap p.fb-sub { color: var(--muted); margin-bottom: 24px; }
+  .fb-field { margin-bottom: 18px; }
+  .fb-field label { display: block; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 6px; }
+  .fb-options { display: flex; gap: 8px; flex-wrap: wrap; }
+  .fb-option {
+    flex: 1; min-width: 110px; text-align: center; padding: 10px 8px;
+    border: 1px solid var(--border); border-radius: var(--radius);
+    background: var(--surface2); color: var(--text); cursor: pointer;
+    font-size: 14px; user-select: none;
+  }
+  .fb-option input { display: none; }
+  .fb-option.fb-selected { border-color: var(--accent); background: var(--tint-accent); color: var(--accent); }
+  .fb-field input[type=text], .fb-field textarea {
+    width: 100%; padding: 10px 12px; border-radius: var(--radius);
+    border: 1px solid var(--border); background: var(--surface); color: var(--text);
+    font-family: inherit; font-size: 14px;
+  }
+  .fb-field textarea { min-height: 140px; resize: vertical; }
+  .fb-submit {
+    padding: 10px 20px; border-radius: var(--radius); border: none;
+    background: var(--accent); color: var(--text-inv); font-weight: 600;
+    font-size: 14px; cursor: pointer;
+  }
+  .fb-submit:disabled { opacity: 0.6; cursor: not-allowed; }
+  .fb-status { margin-top: 14px; font-size: 14px; }
+  .fb-status.fb-ok { color: var(--accent2); }
+  .fb-status.fb-err { color: var(--danger); }
+  .fb-status a { color: var(--accent); }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="fb-wrap">
+  <h1>Report a Bug</h1>
+  <p class="fb-sub">Submissions are filed directly as a GitHub issue on the AlphaForgeAI repo.</p>
+
+  <form id="fb-form">
+    <div class="fb-field">
+      <label>Environment</label>
+      <div class="fb-options" data-group="environment">
+        <label class="fb-option fb-selected"><input type="radio" name="environment" value="testnet" checked>Testnet</label>
+        <label class="fb-option"><input type="radio" name="environment" value="live">Live App</label>
+      </div>
+    </div>
+
+    <div class="fb-field">
+      <label>Type</label>
+      <div class="fb-options" data-group="category">
+        <label class="fb-option fb-selected"><input type="radio" name="category" value="bug" checked>Bug</label>
+        <label class="fb-option"><input type="radio" name="category" value="issue">Issue</label>
+        <label class="fb-option"><input type="radio" name="category" value="other">Other</label>
+      </div>
+    </div>
+
+    <div class="fb-field">
+      <label for="fb-title">Summary</label>
+      <input type="text" id="fb-title" name="title" maxlength="120" required placeholder="Short summary of what happened">
+    </div>
+
+    <div class="fb-field">
+      <label for="fb-description">Details</label>
+      <textarea id="fb-description" name="description" required placeholder="What did you expect vs. what actually happened? Steps to reproduce, if any."></textarea>
+    </div>
+
+    <div class="fb-field">
+      <label for="fb-contact">Your contact (optional)</label>
+      <input type="text" id="fb-contact" name="contact" placeholder="Email, if you want a reply">
+    </div>
+
+    <button class="fb-submit" type="submit">Submit Report</button>
+    <div id="fb-status" class="fb-status"></div>
+  </form>
+</div>
+
+<script>
+document.querySelectorAll('.fb-options').forEach(function (group) {
+  group.addEventListener('click', function (ev) {
+    var opt = ev.target.closest('.fb-option');
+    if (!opt) return;
+    group.querySelectorAll('.fb-option').forEach(function (o) { o.classList.remove('fb-selected'); });
+    opt.classList.add('fb-selected');
+  });
+});
+
+document.getElementById('fb-form').addEventListener('submit', async function (ev) {
+  ev.preventDefault();
+  var form = ev.target;
+  var statusEl = document.getElementById('fb-status');
+  var submitBtn = form.querySelector('.fb-submit');
+  submitBtn.disabled = true;
+  statusEl.textContent = 'Submitting…';
+  statusEl.className = 'fb-status';
+
+  var body = new URLSearchParams(new FormData(form));
+  try {
+    var res = await fetch('/api/feedback', { method: 'POST', body: body });
+    var data = await res.json();
+    if (data.ok) {
+      statusEl.className = 'fb-status fb-ok';
+      statusEl.innerHTML = data.issue_url
+        ? 'Thanks — <a href="' + data.issue_url + '" target="_blank" rel="noopener">view the issue</a>.'
+        : data.message;
+      form.reset();
+    } else {
+      statusEl.className = 'fb-status fb-err';
+      statusEl.textContent = data.message || 'Something went wrong.';
+    }
+  } catch (e) {
+    statusEl.className = 'fb-status fb-err';
+    statusEl.textContent = 'Network error — please try again.';
+  } finally {
+    submitBtn.disabled = false;
+  }
+});
+</script>
+{% endblock %}

@@ -4,33 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>{% block title %}AlphaForgeAI{% endblock %} — AI-Powered Crypto Insights</title>
-
-    {# ── Default SEO meta (overridden per-page via {% block seo %}) ── #}
-    {% block seo %}
-    <meta name="description" content="AlphaForgeAI delivers AI-powered crypto market signals, daily analysis, and real-time news for traders. XGBoost-driven signals for Bitcoin, Ethereum, and 26+ assets." />
-    <meta name="keywords" content="crypto signals, bitcoin analysis, ethereum, AI trading, crypto market, AlphaForgeAI, XGBoost, crypto news, altcoins, DeFi" />
-    <meta name="robots" content="index, follow" />
-    <meta name="author" content="AlphaForgeAI" />
-
-    {# Open Graph #}
-    <meta property="og:site_name" content="AlphaForgeAI" />
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="{% block og_title %}AlphaForgeAI — AI-Powered Crypto Insights{% endblock %}" />
-    <meta property="og:description" content="{% block og_description %}AI-powered crypto market signals, daily analysis, and real-time news for traders.{% endblock %}" />
-    <meta property="og:url" content="https://alphaforgeai.io{% block og_url %}/{% endblock %}" />
-    <meta property="og:image" content="{% block og_image %}https://alphaforgeai.io/static/img/alpha-research-icon.png{% endblock %}" />
-
-    {# Twitter Card #}
-    <meta name="twitter:card" content="summary" />
-    <meta name="twitter:site" content="@AlphaForgeAI" />
-    <meta name="twitter:title" content="{% block tw_title %}AlphaForgeAI — AI-Powered Crypto Insights{% endblock %}" />
-    <meta name="twitter:description" content="{% block tw_description %}AI-powered crypto market signals, daily analysis, and real-time news for traders.{% endblock %}" />
-    <meta name="twitter:image" content="{% block tw_image %}https://alphaforgeai.io/static/img/alpha-research-icon.png{% endblock %}" />
-
-    {# Canonical #}
-    <link rel="canonical" href="https://alphaforgeai.io{% block canonical %}/{% endblock %}" />
-    {% endblock %}
-
     <link rel="stylesheet" href="/static/css/styles.css" />
     {% block head %}{% endblock %}
 </head>
@@ -44,9 +17,8 @@
                 <a href="/" {% if active_page == 'home' %}class="nav-active"{% endif %}>Home</a>
                 <a href="/dashboard" {% if active_page == 'dashboard' %}class="nav-active"{% endif %}>Dashboard</a>
                 <a href="/signals" {% if active_page == 'signals' %}class="nav-active"{% endif %}>Signals</a>
-                <a href="/news" {% if active_page == 'news' %}class="nav-active"{% endif %}>News</a>
-                <a href="/blog" {% if active_page == 'blog' %}class="nav-active"{% endif %}>Blog</a>
                 <a href="/health">Health</a>
+                <a href="/feedback" {% if active_page == 'feedback' %}class="nav-active"{% endif %}>Report Bug</a>
             </nav>
         </div>
     </header>
